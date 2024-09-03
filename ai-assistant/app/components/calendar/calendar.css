@@ -1,0 +1,8 @@
+.event-dot {
+  height: 8px;
+  width: 8px;
+  background-color: #f00;
+  border-radius: 50%;
+  display: flex;
+  margin: 1px auto 0;
+}
