@@ -15,7 +15,7 @@ SCOPES = ["https://www.googleapis.com/auth/calendar"]
 # logging.basicConfig(level=logging.DEBUG)
 
 def get_google_calendar_events():
-    """Fetches the next 50 events from all of the user's Google Calendars."""
+    """Fetches events from all of the user's Google Calendars for the current month."""
     creds = None
     if os.path.exists("token.json"):
         creds = Credentials.from_authorized_user_file("token.json", SCOPES)
@@ -32,7 +32,16 @@ def get_google_calendar_events():
 
     try:
         service = build("calendar", "v3", credentials=creds)
-        now = datetime.datetime.utcnow().isoformat() + "Z"  # 'Z' indicates UTC time
+        
+        # Calculate the start and end of the current month
+        today = datetime.datetime.now(pytz.UTC)
+        start_of_month = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        next_month = start_of_month + datetime.timedelta(days=32)
+        end_of_month = next_month.replace(day=1) - datetime.timedelta(seconds=1)
+
+        # Convert to RFC3339 format
+        time_min = start_of_month.isoformat()
+        time_max = end_of_month.isoformat()
 
         # Get the user's primary calendar to retrieve the timezone
         calendar = service.calendars().get(calendarId='primary').execute()
@@ -48,8 +57,8 @@ def get_google_calendar_events():
                 service.events()
                 .list(
                     calendarId=calendar_id,
-                    timeMin=now,
-                    maxResults=10,
+                    timeMin=time_min,
+                    timeMax=time_max,
                     singleEvents=True,
                     orderBy="startTime",
                 )
@@ -73,6 +82,7 @@ def get_google_calendar_events():
                     duration = (end_dt - start_dt).total_seconds() / 3600
                     formatted_time = f"{start_dt.strftime('%H:%M')}-{end_dt.strftime('%H:%M')}"
                 else:
+                    start_dt = datetime.datetime.strptime(start, "%Y-%m-%d")
                     formatted_time = "All day"
                     duration = 24  # All-day event
 
@@ -91,7 +101,7 @@ def get_google_calendar_events():
         # Sort events by date and time
         events_list.sort(key=lambda x: (x['date'], x['time']))
 
-        return events_list[:50]  # Return the first 50 events across all calendars
+        return events_list  # Return all events for the current month
 
     except HttpError as error:
         logging.error(f"An error occurred: {error}")

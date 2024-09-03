@@ -9,23 +9,18 @@ from calendar_tools import get_google_calendar_events, create_google_calendar_ev
 
 chat_route = APIRouter(prefix="/api/chat")
 
-def get_calendar_events(date: str):
-  events = get_google_calendar_events()
+def get_calendar_events(date: str = None):
+    events = get_google_calendar_events()
 
-  events_on_date = []
-  for event in events:
-    if event['date'] == date:
-      events_on_date.append(event)
-  
-  if events_on_date:
-    print(events_on_date)
-    return {
-      "existing_events": events_on_date
-    }
-  else:
-    return {
-      "existing_events": []
-    }
+    if date:
+        events_on_date = [event for event in events if event['date'] == date]
+        return {
+            "existing_events": events_on_date
+        }
+    else:
+        return {
+            "existing_events": events
+        }
 
 def create_calendar_event(date: str, time: str, description: str, location: str = None, duration: int = 1):
     def parse_time(time_str):
@@ -128,12 +123,12 @@ def delete_calendar_event(date: str, time: str, description: str):
 tools = [
    {
        "name": "get_calendar_events",
-       "description": "Gets the user's events on a given date, including date, time, location, and description.",
+       "description": "Gets the user's events for the current month, or for a specific date if provided. Includes date, time, location, and description.",
        "parameter_definitions": {
             "date": {
-                "description": "Date of the event in YYYY-MM-DD format",
+                "description": "Date of the event in YYYY-MM-DD format. If not provided, returns events for the current month.",
                 "type": "str",
-                "required": True
+                "required": False
             },
         }
    }, 
@@ -263,34 +258,38 @@ async def chat(request: ChatRequest):
             chat_history=chat_history
         )
 
-        while response.tool_calls:
-            tool_calls = response.tool_calls
-            print(f'Tool calls: {tool_calls}')
-            
-            if response.text:
-                print("Tool plan:")
-                print(response.text,"\n")
-            print("Tool calls:")
-            for call in tool_calls:
-                print(f"Tool name: {call.name} | Parameters: {call.parameters}")
-            print("="*50)
-            
-            # Step 3: Get tool results
-            tool_results = []
-            for tc in tool_calls:
-                tool_call = {"name": tc.name, "parameters": tc.parameters}
-                tool_output = functions_map[tc.name](**tc.parameters)
-                tool_results.append({"call": tool_call, "outputs": [tool_output]})
+        while True:
+            if response.tool_calls:
+                tool_calls = response.tool_calls
+                print(f'Tool calls: {tool_calls}')
+                
+                if response.text:
+                    print("Tool plan:")
+                    print(response.text,"\n")
+                print("Tool calls:")
+                for call in tool_calls:
+                    print(f"Tool name: {call.name} | Parameters: {call.parameters}")
+                print("="*50)
+                
+                # Step 3: Get tool results
+                tool_results = []
+                for tc in tool_calls:
+                    tool_call = {"name": tc.name, "parameters": tc.parameters}
+                    tool_output = functions_map[tc.name](**tc.parameters)
+                    tool_results.append({"call": tool_call, "outputs": [tool_output]})
 
-            # Step 4: Generate response and citations
-            response = cohere_client.chat(
-                message="",
-                model=model,
-                preamble=preamble,
-                tools=tools,
-                tool_results=tool_results,
-                chat_history=response.chat_history
-            )
+                # Step 4: Generate response and citations
+                response = cohere_client.chat(
+                    message="",
+                    model=model,
+                    preamble=preamble,
+                    tools=tools,
+                    tool_results=tool_results,
+                    chat_history=response.chat_history
+                )
+            else:
+                # No tool calls, break the loop
+                break
                 
         # Append the current chat turn to the chat history
         chat_history = response.chat_history
@@ -301,8 +300,11 @@ async def chat(request: ChatRequest):
 
         # Define the event stream generator function
         async def event_stream():
-            for chunk in response.text:
-                yield chunk
+            if response.text:
+                for chunk in response.text:
+                    yield chunk
+            else:
+                yield "No response generated."
 
         # Return the StreamingResponse with the event_stream generator
         return StreamingResponse(event_stream(), media_type="text/event-stream")
