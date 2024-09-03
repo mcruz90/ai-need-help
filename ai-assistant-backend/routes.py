@@ -6,16 +6,16 @@ from config import cohere_client
 from datetime import date, datetime, timedelta
 from events import preprocess_events, preprocess_google_calendar_events
 from calendar_tools import get_google_calendar_events, create_google_calendar_event, edit_google_calendar_event, delete_google_calendar_event
+import logging
 
 chat_route = APIRouter(prefix="/api/chat")
 
 def get_calendar_events(date: str = None):
-    events = get_google_calendar_events()
+    events = get_google_calendar_events(date)
 
     if date:
-        events_on_date = [event for event in events if event['date'] == date]
         return {
-            "existing_events": events_on_date
+            "existing_events": events
         }
     else:
         return {
@@ -48,57 +48,52 @@ def create_calendar_event(date: str, time: str, description: str, location: str 
 
     return create_google_calendar_event(date, time, description, location, duration)
 
-def edit_calendar_event(date: str, time: str, description: str, location: str = None, duration: int = None):
-    def parse_time(time_str: str) -> time:
-        # Try parsing 24-hour format
-        try:
-            return datetime.strptime(time_str, "%H:%M").time()
-        except ValueError:
-            # If that fails, try parsing 12-hour format
-            return datetime.strptime(time_str, "%I%p").time()
-
-    # First, get the events for the given date
+def edit_calendar_event(date: str, original_description: str, new_description: str, time: str = None, location: str = None, duration: int = None):
+    logging.info(f"Attempting to edit event: date={date}, original_description={original_description}, new_description={new_description}")
+    
+    # Get events for the given date
     events = get_calendar_events(date)["existing_events"]
     
-    # Find the event that matches the given description
+    if not events:
+        logging.error(f"No events found for date: {date}")
+        return {"is_success": False, "message": f"No events found for date: {date}"}
+
+    # Find the event that matches the original description
     event_id = None
     original_event = None
     for event in events:
-        if event['description'] == description:
+        if event['description'].lower() == original_description.lower():
             event_id = event['event_id']
             original_event = event
             break
-    
+
     if event_id is None:
-        return {"is_success": False, "message": "Event not found"}
+        logging.error(f"Event not found for date: {date}, original description: {original_description}")
+        return {"is_success": False, "message": f"Event not found for date: {date}, original description: {original_description}"}
     
-    # Parse the time string
-    if '-' in time:
-        start_time, end_time = map(parse_time, time.split('-'))
-    else:
-        start_time = parse_time(time)
-        if duration is None:
-            duration = original_event['duration']
-        end_time = (datetime.combine(datetime.min, start_time) + timedelta(hours=duration)).time()
-    
-    # Format times as strings
-    start_time_str = start_time.strftime("%H:%M")
-    end_time_str = end_time.strftime("%H:%M")
-    
-    # Now call edit_google_calendar_event with the found event_id
-    result = edit_google_calendar_event(
-        event_id, 
-        date=date, 
-        time=f"{start_time_str}-{end_time_str}", 
-        description=description, 
-        location=location, 
-        duration=duration
-    )
-    
-    if not result["is_success"]:
-        return {"is_success": False, "message": f"Failed to edit event: {result['message']}"}
-    
-    return {"is_success": True, "message": f"Successfully edited event: {description}"}
+    logging.info(f"Found matching event: {original_event['description']}")
+
+    # Call edit_google_calendar_event with the found event_id
+    try:
+        result = edit_google_calendar_event(
+            event_id, 
+            date=date, 
+            time=time if time else original_event['time'], 
+            description=new_description, 
+            location=location, 
+            duration=duration
+        )
+        
+        if not result["is_success"]:
+            logging.error(f"Failed to edit event: {result['message']}")
+            return {"is_success": False, "message": f"Failed to edit event: {result['message']}"}
+        
+        logging.info(f"Successfully edited event: {new_description}")
+        return {"is_success": True, "message": f"Successfully edited event: {new_description}"}
+
+    except Exception as e:
+        logging.error(f"Unexpected error in edit_calendar_event: {str(e)}")
+        return {"is_success": False, "message": f"An unexpected error occurred: {str(e)}"}
 
 def delete_calendar_event(date: str, time: str, description: str):
     # First, get the events for the given date
@@ -165,22 +160,27 @@ tools = [
     },
     {
       "name": "edit_calendar_event",
-      "description": "Edits an existing calendar event. The event is identified by its date, time, and description.",
+      "description": "Edits an existing calendar event. The event is identified by its date and original description. The function then updates the event with the new description and other optional parameters.",
       "parameter_definitions": {
             "date": {
                 "description": "Date of the event in YYYY-MM-DD format",
                 "type": "str",
                 "required": True
             },
-            "time": {
-                "description": "Time of the event in HH:MM format",
+            "original_description": {
+                "description": "The current description of the event in the calendar",
                 "type": "str",
                 "required": True
             },
-            "description": {
-                "description": "Brief description of the event",
+            "new_description": {
+                "description": "The new description to be applied to the event",
                 "type": "str",
                 "required": True
+            },
+            "time": {
+                "description": "New time of the event in HH:MM format or HH:MM-HH:MM format",
+                "type": "str",
+                "required": False
             },
             "location": {
                 "description": "New venue or location of the event, or 'None' if not specified",

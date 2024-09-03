@@ -12,10 +12,10 @@ from googleapiclient.errors import HttpError
 # If modifying these scopes, delete the file token.json.
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
-# logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG)
 
-def get_google_calendar_events():
-    """Fetches events from all of the user's Google Calendars for the current month."""
+def get_google_calendar_events(target_date: str = None):
+    """Fetches events from all of the user's Google Calendars for the specified date or current month."""
     creds = None
     if os.path.exists("token.json"):
         creds = Credentials.from_authorized_user_file("token.json", SCOPES)
@@ -33,15 +33,20 @@ def get_google_calendar_events():
     try:
         service = build("calendar", "v3", credentials=creds)
         
-        # Calculate the start and end of the current month
-        today = datetime.datetime.now(pytz.UTC)
-        start_of_month = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        next_month = start_of_month + datetime.timedelta(days=32)
-        end_of_month = next_month.replace(day=1) - datetime.timedelta(seconds=1)
-
-        # Convert to RFC3339 format
-        time_min = start_of_month.isoformat()
-        time_max = end_of_month.isoformat()
+        if target_date:
+            # If a specific date is provided, set the time range to that day
+            start_of_day = datetime.datetime.strptime(target_date, "%Y-%m-%d").replace(hour=0, minute=0, second=0, microsecond=0)
+            end_of_day = start_of_day + datetime.timedelta(days=1) - datetime.timedelta(seconds=1)
+            time_min = start_of_day.isoformat() + 'Z'
+            time_max = end_of_day.isoformat() + 'Z'
+        else:
+            # Calculate the start and end of the current month
+            today = datetime.datetime.now(pytz.UTC)
+            start_of_month = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            next_month = start_of_month + datetime.timedelta(days=32)
+            end_of_month = next_month.replace(day=1) - datetime.timedelta(seconds=1)
+            time_min = start_of_month.isoformat()
+            time_max = end_of_month.isoformat()
 
         # Get the user's primary calendar to retrieve the timezone
         calendar = service.calendars().get(calendarId='primary').execute()
@@ -205,6 +210,12 @@ def edit_google_calendar_event(event_id: str, date: str = None, time: str = None
         user_timezone = calendar['timeZone']
         
         # Update the event details if provided
+        if description:
+            event['summary'] = description
+        
+        if location:
+            event['location'] = location
+
         if date and time:
             start_time, end_time = time.split('-')
             start_datetime = datetime.datetime.strptime(f"{date} {start_time}", "%Y-%m-%d %H:%M")
@@ -218,12 +229,11 @@ def edit_google_calendar_event(event_id: str, date: str = None, time: str = None
                 'dateTime': end_datetime.isoformat(),
                 'timeZone': user_timezone,
             }
-        
-        if description:
-            event['summary'] = description
-        
-        if location:
-            event['location'] = location
+        elif duration:
+            # If only duration is provided, update the end time
+            start_datetime = datetime.datetime.fromisoformat(event['start']['dateTime'])
+            end_datetime = start_datetime + datetime.timedelta(hours=duration)
+            event['end']['dateTime'] = end_datetime.isoformat()
 
         logging.debug(f"Updated event (before API call): {event}")
         updated_event = service.events().update(calendarId='primary', eventId=event_id, body=event).execute()
@@ -231,10 +241,11 @@ def edit_google_calendar_event(event_id: str, date: str = None, time: str = None
         
         return {
             "is_success": True,
-            "message": f"Updated event '{updated_event['summary']}' to {time}"
+            "message": f"Updated event '{updated_event['summary']}'"
         }
 
     except HttpError as error:
+        logging.error(f"An error occurred: {error}")
         return {
             "is_success": False,
             "message": f"An error occurred: {error}"
