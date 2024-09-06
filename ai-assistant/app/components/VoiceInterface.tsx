@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { MicrophoneIcon } from '@heroicons/react/24/outline';
 
 interface VoiceInterfaceProps {
   onNewMessage: (message: string) => Promise<void>;
@@ -83,13 +84,14 @@ const VoiceInterface: React.FC<VoiceInterfaceProps> = ({ onNewMessage, onInterim
     <div className="mt-4">
       <button
         onClick={toggleListening}
-        className={`px-4 py-2 rounded ${
+        className={`p-2 rounded-full ${
           isListening ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'
-        } text-white font-bold`}
+        } text-white`}
+        aria-label={isListening ? 'Stop Listening' : 'Start Listening'}
       >
-        {isListening ? 'Stop Listening' : 'Start Listening'}
+        <MicrophoneIcon className="h-6 w-6" />
       </button>
-      <div>
+      <div className="mt-2">
         <p>Transcript: {transcript}</p>
       </div>
     </div>
