@@ -1,61 +1,86 @@
 .chat-container {
   width: 100%;
-  max-width: 48rem;
   margin: 0 auto;
+  height: calc(90vh - 8rem);
+  display: flex;
+  flex-direction: column;
 }
 
 .chat-box {
-  background-color: #f3f4f6; /* Light background */
   border-radius: 0.5rem; /* Rounded corners */
   overflow: hidden;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #e5e7eb;
+  height: 100%;
 }
 
 .chat-messages {
-  height: 24rem; /* Fixed height */
-  overflow-y: auto; /* Scrollable */
-  padding: 1rem; /* Padding */
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+  overflow-y: auto;
+  flex-grow: 1;
+}
+
+.message-wrapper {
+  display: flex;
+  width: 100%;
 }
 
 .message {
-  margin-bottom: 1rem; /* Space between messages */
-  word-wrap: break-word; /* Prevent overflow */
-  padding: 0.5rem; /* Padding inside the message box */
-  border-radius: 0.375rem; /* Rounded corners */
+  max-width: 70%;
+  padding: 0.75rem 1rem;
+  border-radius: 1rem;
+  word-wrap: break-word;
 }
 
+.message-loader {
+  align-self: flex-start;
+  border-radius: 0.5rem; 
+  padding: 0.5rem;
+  position: relative; 
+  padding-bottom: 2rem; 
+}
 .message-user {
-  text-align: right; /* Align user messages to the right */
-  background-color: #d1d5db; /* User message background */
-  color: #1f2937; /* User message text color */
-  border: 1px solid #d1d5db; /* Border for user message */
+  @apply bg-chat-blue text-white;
+  border-radius: 0.5rem;
+  align-self: flex-end;
+  padding: 0.5rem;
 }
 
 .message-ai {
-  text-align: left; /* Align AI messages to the left */
-  background-color: #e5e7eb; /* AI message background */
-  color: #1f2937; /* AI message text color */
-  border: 1px solid #e5e7eb; /* Border for AI message */
+  @apply bg-chat-green text-white;
+  align-self: flex-start;
+  border-radius: 0.5rem; 
+  padding: 0.5rem;
+  position: relative;
+  padding-bottom: 2rem; 
 }
 
-.message-content {
-  display: inline-block; /* Inline block for content */
-  padding: 0.5rem; /* Padding */
-  border-radius: 0.375rem; /* Rounded corners */
+.justify-end {
+  justify-content: flex-end;
+}
+
+.justify-start {
+  justify-content: flex-start;
 }
 
 .copy-button {
-  margin-top: 0.5rem; /* Space above button */
-  background-color: #4b5563; /* Button color */
-  color: white; /* Text color */
-  padding: 0.25rem 0.5rem; /* Padding */
-  border-radius: 0.25rem; /* Rounded corners */
-  font-size: 0.875rem; /* Font size */
-  transition: background-color 0.2s; /* Transition effect */
+  position: absolute;
+  bottom: 0.5rem;
+  right: 0.5rem;
+  padding: 0.25rem;
+  border-radius: 0.25rem;
+  transition: 0.4s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .copy-button:hover {
-  background-color: #374151; /* Darker on hover */
+  background-color: #cbd5e0;
 }
 
 /* Input form styles */
@@ -63,7 +88,7 @@
   border-top: 1px solid #e5e7eb; /* Top border */
   padding: 1rem; /* Padding */
   background-color: #f3f4f6; /* Light background for input area */
-  border-radius: 0.5rem; /* Rounded corners for input area */
+  border-radius: 0 0 0.5rem 0.5rem; /* Rounded corners for input area */
 }
 
 .input-container {
@@ -80,13 +105,12 @@
 }
 
 .send-button {
-  background-color: #4b5563; /* Button color */
-  color: white; /* Text color */
+  @apply bg-brand-orange text-white;
   border-radius: 9999px; /* Fully rounded */
   padding: 0.5rem 1.5rem; /* Padding */
-  transition: background-color 0.2s; /* Transition effect */
+  transition: background-color 0.4s; /* Transition effect */
 }
 
 .send-button:hover {
-  background-color: #374151; /* Darker on hover */
+  @apply bg-brand-orange-dark; /* Darker orange on hover */
 }

@@ -4,8 +4,11 @@ import { useState, useCallback, useRef } from 'react';
 import ChatInterface from './components/ChatInterface';
 import VoiceInterface from './components/VoiceInterface';
 import Calendar from './components/calendar/Calendar';
+import Sidebar from './components/Sidebar';
 import './components/ChatInterface.css';
 import './components/CodeBlock.css';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 type ValuePiece = Date | null;
 type Value = ValuePiece | [ValuePiece, ValuePiece];
@@ -23,22 +26,38 @@ export default function Home() {
   const [inputMessage, setInputMessage] = useState('');  // Add this new state
   const isProcessingRef = useRef(false);
 
+  const streamResponse = useCallback(async (reader: ReadableStreamDefaultReader<Uint8Array>) => {
+    let fullResponse = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = new TextDecoder().decode(value);
+      fullResponse += chunk;
+
+      setMessages(prev => {
+        const newMessages = [...prev];
+        newMessages[newMessages.length - 1].text = fullResponse;
+        return newMessages;
+      });
+
+      // Force immediate update
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
+    return fullResponse;
+  }, []);
+
   const handleNewMessage = useCallback(async (message: string) => {
     if (isProcessingRef.current) return;
     isProcessingRef.current = true;
 
-    // Add user message to messages state
-    setMessages(prev => [...prev, { text: message, isUser: true }]);
-    
+    setMessages(prev => [...prev, { text: message, isUser: true }, { text: '', isUser: false }]);
+
     try {
-      const response = await fetch('http://localhost:8000/api/chat', {
+      const response = await fetch(`${API_URL}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          messages: [
-            ...chatHistory,
-            { role: 'User', content: message }
-          ]
+        body: JSON.stringify({
+          messages: [...chatHistory, { role: 'User', content: message }]
         }),
       });
 
@@ -47,26 +66,8 @@ export default function Home() {
       const reader = response.body?.getReader();
       if (!reader) throw new Error('No reader available');
 
-      // Add an empty AI message that we'll update as we receive the response
-      setMessages(prev => [...prev, { text: '', isUser: false }]);
+      const fullResponse = await streamResponse(reader);
 
-      let fullResponse = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = new TextDecoder().decode(value);
-        fullResponse += chunk;
-        
-        // Update the AI message as we receive more of the response
-        setMessages(prev => {
-          const newMessages = [...prev];
-          newMessages[newMessages.length - 1].text = fullResponse;
-          return newMessages;
-        });
-      }
-
-      // Update chat history
       setChatHistory(prev => [
         ...prev,
         { role: 'User', content: message },
@@ -79,7 +80,7 @@ export default function Home() {
     } finally {
       isProcessingRef.current = false;
     }
-  }, [chatHistory]);
+  }, [chatHistory, streamResponse]);
 
   const handleInterimTranscript = useCallback((transcript: string) => {
     setInterimTranscript(transcript);
@@ -91,23 +92,34 @@ export default function Home() {
   }, []);
 
   return (
-    <main className="flex min-h-screen p-4">
-      <div className="flex-grow mr-4">
-        <h1 className="text-4xl font-bold mb-8">Personal AI Assistant</h1>
-        <ChatInterface 
-          messages={messages} 
-          onNewMessage={handleNewMessage} 
-          interimTranscript={interimTranscript}
-          inputMessage={inputMessage}  // Pass the inputMessage state
-          setInputMessage={setInputMessage}  // Pass the setInputMessage function
-        />
-        <VoiceInterface 
-          onNewMessage={handleNewMessage} 
-          onInterimTranscript={handleInterimTranscript}
-          onFinalTranscript={handleFinalTranscript}  // Add this new prop
-        />
-      </div>
-      <Calendar />
-    </main>
+    <div className="flex h-screen bg-gray-100">
+      <Sidebar />
+      <main className="flex-1 flex flex-col overflow-hidden">
+        <header className="bg-white shadow-sm z-10">
+          <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
+            <h1 className="text-2xl font-semibold text-gray-900">Calendar Agent</h1>
+          </div>
+        </header>
+        <div className="flex-1 flex overflow-hidden">
+          <section className="w-3/4 overflow-y-auto p-4">
+            <ChatInterface
+              messages={messages}
+              onNewMessage={handleNewMessage}
+              interimTranscript={interimTranscript}
+              inputMessage={inputMessage}  // Pass the inputMessage state
+              setInputMessage={setInputMessage}  // Pass the setInputMessage function
+            />
+            <VoiceInterface
+              onNewMessage={handleNewMessage}
+              onInterimTranscript={handleInterimTranscript}
+              onFinalTranscript={handleFinalTranscript}  // Add this new prop
+            />
+          </section>
+          <aside className="w-1/4 bg-white p-4 border-l overflow-y-auto">
+            <Calendar />
+          </aside>
+        </div>
+      </main>
+    </div>
   );
 }

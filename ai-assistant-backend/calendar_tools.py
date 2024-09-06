@@ -2,7 +2,7 @@ import datetime
 import os.path
 import logging
 import pytz
-
+from functools import lru_cache
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -12,7 +12,159 @@ from googleapiclient.errors import HttpError
 # If modifying these scopes, delete the file token.json.
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
-logging.basicConfig(level=logging.DEBUG)
+# logging.basicConfig(level=logging.DEBUG)
+
+def get_cached_google_calendar_events(target_date: str = None, cache_duration: int = 15):
+    """
+    Fetches and caches Google Calendar events.
+    
+    :param target_date: The date to fetch events for (optional)
+    :param cache_duration: How long to cache the results in minutes
+    :return: List of calendar events
+    """
+    cache_key = f"calendar_events_{target_date}"
+    
+    # Check if we have a cached result that's still valid
+    if hasattr(get_cached_google_calendar_events, cache_key):
+        cached_data, cache_time = getattr(get_cached_google_calendar_events, cache_key)
+        if datetime.datetime.now() - cache_time < datetime.timedelta(minutes=cache_duration):
+            logging.info(f"Returning cached calendar events for {target_date}")
+            return cached_data
+
+    # If no valid cache, fetch the events
+    events = get_google_calendar_events(target_date)
+    
+    # Store the result and the time it was fetched
+    setattr(get_cached_google_calendar_events, cache_key, (events, datetime.datetime.now()))
+    
+    logging.info(f"Fetched and cached new calendar events for {target_date}")
+    return events
+
+def get_calendar_events(date: str = None):
+    """
+    Fetches google calendar events from cache
+    :param date: The date to fetch events for (optional)
+    :return: List of calendar events for the given date or current month
+    """
+    events = get_cached_google_calendar_events(date)
+    return {
+        "existing_events": events
+    }
+
+def create_calendar_event(date: str, time: str, description: str, location: str = None, duration: int = 1):
+    """
+    Creates a new calendar event
+    :param date: The date of the event in YYYY-MM-DD format
+    :param time: The time of the event in HH:MM format, or a start and end time range, or 9am-5pm if not specified
+    :param description: The description of the event
+    :param location: The location of the event (optional)
+    :param duration: The duration of the event in hours (optional)
+    :return: The result of the event creation
+    """
+    def parse_time(time_str):
+        # Try parsing 24-hour format
+        try:
+            return datetime.datetime.strptime(time_str, "%H:%M").time()
+        except ValueError:
+            # Else, try parsing 12-hour format
+            return datetime.datetime.strptime(time_str, "%I%p").time()
+
+    # If time is provided as a range (e.g., "09:00-17:00" or "9am-5pm"), use it directly
+    if '-' in time:
+        start_time, end_time = map(parse_time, time.split('-'))
+        start_datetime = datetime.datetime.combine(datetime.datetime.strptime(date, "%Y-%m-%d").date(), start_time)
+        end_datetime = datetime.datetime.combine(datetime.datetime.strptime(date, "%Y-%m-%d").date(), end_time)
+        duration = (end_datetime - start_datetime).total_seconds() / 3600
+        time = f"{start_time.strftime('%H:%M')}-{end_time.strftime('%H:%M')}"
+    else:
+        # If only start time is provided, calculate end time based on duration
+        start_time = parse_time(time)
+        start_datetime = datetime.datetime.combine(datetime.datetime.strptime(date, "%Y-%m-%d").date(), start_time)
+        end_datetime = start_datetime + datetime.timedelta(hours=duration)
+        time = f"{start_time.strftime('%H:%M')}-{end_datetime.time().strftime('%H:%M')}"
+
+    return create_google_calendar_event(date, time, description, location, duration)
+
+def edit_calendar_event(date: str, original_description: str, new_description: str, time: str = None, location: str = None, duration: int = None):
+    """
+    Edits an existing calendar event
+    :param date: The date of the event in YYYY-MM-DD format
+    :param original_description: The original description of the event in the calendar
+    :param new_description: The new description to be applied to the event
+    :param time: The new time of the event in HH:MM format or HH:MM-HH:MM format (optional)
+    :param location: The new venue or location of the event, or 'None' if not specified (optional)
+    :param duration: The new duration of the event in hours (optional)
+    :return: The result of the event editing
+    """
+    logging.info(f"Attempting to edit event: date={date}, original_description={original_description}, new_description={new_description}")
+    
+    # Get events for the given date
+    events = get_calendar_events(date)["existing_events"]
+    
+    if not events:
+        logging.error(f"No events found for date: {date}")
+        return {"is_success": False, "message": f"No events found for date: {date}"}
+
+    # Find the event that matches the original description
+    event_id = None
+    original_event = None
+    for event in events:
+        if event['description'].lower() == original_description.lower():
+            event_id = event['event_id']
+            original_event = event
+            break
+
+    if event_id is None:
+        logging.error(f"Event not found for date: {date}, original description: {original_description}")
+        return {"is_success": False, "message": f"Event not found for date: {date}, original description: {original_description}"}
+    
+    logging.info(f"Found matching event: {original_event['description']}")
+
+    # Call edit_google_calendar_event with the found event_id
+    try:
+        result = edit_google_calendar_event(
+            event_id, 
+            date=date, 
+            time=time if time else original_event['time'], 
+            description=new_description, 
+            location=location, 
+            duration=duration
+        )
+        
+        if not result["is_success"]:
+            logging.error(f"Failed to edit event: {result['message']}")
+            return {"is_success": False, "message": f"Failed to edit event: {result['message']}"}
+        
+        logging.info(f"Successfully edited event: {new_description}")
+        return {"is_success": True, "message": f"Successfully edited event: {new_description}"}
+
+    except Exception as e:
+        logging.error(f"Unexpected error in edit_calendar_event: {str(e)}")
+        return {"is_success": False, "message": f"An unexpected error occurred: {str(e)}"}
+
+def delete_calendar_event(date: str, time: str, description: str):
+    """
+    Deletes an existing calendar event
+    :param date: The date of the event in YYYY-MM-DD format
+    :param time: The time of the event in HH:MM format
+    :param description: The description of the event
+    :return: The result of the event deletion
+    """ 
+    # First, get the events for the given date
+    events = get_calendar_events(date)["existing_events"]
+    
+    # Find the event that matches the given time and description
+    event_id = None
+    for event in events:
+        if event['time'] == time and event['description'] == description:
+            event_id = event['event_id']
+            break
+    
+    if event_id is None:
+        return {"is_success": False, "message": "Event not found"}
+    
+    # Now call delete_google_calendar_event with the found event_id
+    return delete_google_calendar_event(event_id)
 
 def get_google_calendar_events(target_date: str = None):
     """Fetches events from all of the user's Google Calendars for the specified date or current month."""

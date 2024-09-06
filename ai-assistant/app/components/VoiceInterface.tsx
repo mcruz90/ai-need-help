@@ -1,103 +1,99 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 interface VoiceInterfaceProps {
   onNewMessage: (message: string) => Promise<void>;
   onInterimTranscript: (transcript: string) => void;
-  onFinalTranscript: (transcript: string) => void;  // Add this new prop
-}
-
-declare global {
-  interface Window {
-    webkitSpeechRecognition: any;
-  }
+  onFinalTranscript: (transcript: string) => void;
 }
 
 const VoiceInterface: React.FC<VoiceInterfaceProps> = ({ onNewMessage, onInterimTranscript, onFinalTranscript }) => {
   const [isListening, setIsListening] = useState(false);
-  const [recognition, setRecognition] = useState<any>(null);
-  const [interimTranscript, setInterimTranscript] = useState('');
-  const [finalTranscript, setFinalTranscript] = useState('');
-
-  const startListening = useCallback(() => {
-    if (recognition) {
-      recognition.start();
-      setIsListening(true);
-    }
-  }, [recognition]);
-
-  const stopListening = useCallback(() => {
-    if (recognition) {
-      recognition.stop();
-      setIsListening(false);
-    }
-  }, [recognition]);
+  const [transcript, setTranscript] = useState('');
+  const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
-      const recognitionInstance = new window.webkitSpeechRecognition();
-      recognitionInstance.continuous = true;
-      recognitionInstance.interimResults = true;
+    if ('webkitSpeechRecognition' in window) {
+      recognitionRef.current = new (window as any).webkitSpeechRecognition();
+      recognitionRef.current.continuous = true;
+      recognitionRef.current.interimResults = true;
 
-      recognitionInstance.onresult = (event: any) => {
-        let interim = '';
-        let final = '';
+      recognitionRef.current.onstart = () => {
+        console.log('Speech recognition started');
+        setIsListening(true);
+      };
+
+      recognitionRef.current.onerror = (event: any) => {
+        if (event.error !== 'aborted') {
+          console.error('Speech recognition error', event);
+        }
+      };
+
+      recognitionRef.current.onend = () => {
+        console.log('Speech recognition ended');
+        setIsListening(false);
+      };
+
+      recognitionRef.current.onresult = (event: any) => {
+        let interimTranscript = '';
+        let finalTranscript = '';
 
         for (let i = event.resultIndex; i < event.results.length; ++i) {
           if (event.results[i].isFinal) {
-            final += event.results[i][0].transcript;
+            finalTranscript += event.results[i][0].transcript;
           } else {
-            interim += event.results[i][0].transcript;
+            interimTranscript += event.results[i][0].transcript;
           }
         }
 
-        setInterimTranscript(interim);
-        onInterimTranscript(interim);
-        if (final) {
-          setFinalTranscript(prev => prev + ' ' + final.trim());
-          onFinalTranscript(final.trim());  // Call this new function with the final transcript
+        setTranscript(finalTranscript || interimTranscript);
+        
+        if (interimTranscript) {
+          console.log('Interim transcript:', interimTranscript);
+          onInterimTranscript(interimTranscript);
+        }
+        
+        if (finalTranscript) {
+          console.log('Final transcript:', finalTranscript);
+          onFinalTranscript(finalTranscript);
+          onNewMessage(finalTranscript);
         }
       };
-
-      recognitionInstance.onend = () => {
-        if (isListening) {
-          recognitionInstance.start();
-        } else {
-          setIsListening(false);
-        }
-      };
-
-      setRecognition(recognitionInstance);
+    } else {
+      console.log('Speech recognition not supported');
     }
 
     return () => {
-      if (recognition) {
-        recognition.stop();
+      if (recognitionRef.current) {
+        recognitionRef.current.abort();
       }
     };
-  }, [onInterimTranscript, onFinalTranscript, isListening]);
+  }, [onNewMessage, onInterimTranscript, onFinalTranscript]);
 
-  useEffect(() => {
-    if (finalTranscript.trim()) {
-      onNewMessage(finalTranscript.trim());
-      setFinalTranscript('');
+  const toggleListening = () => {
+    if (isListening) {
+      recognitionRef.current?.stop();
+    } else {
+      recognitionRef.current?.start();
     }
-  }, [finalTranscript, onNewMessage]);
+  };
 
   return (
     <div className="mt-4">
       <button
-        onClick={isListening ? stopListening : startListening}
+        onClick={toggleListening}
         className={`px-4 py-2 rounded ${
           isListening ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'
         } text-white font-bold`}
       >
         {isListening ? 'Stop Listening' : 'Start Listening'}
       </button>
+      <div>
+        <p>Transcript: {transcript}</p>
+      </div>
     </div>
   );
 };
 
 export default VoiceInterface;
-
