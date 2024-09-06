@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import CodeBlock from './CodeBlock';
 import './ChatInterface.css';
 import '../markdown-styles.css';
-import { DocumentDuplicateIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
+import { DocumentDuplicateIcon, PaperAirplaneIcon, MicrophoneIcon } from '@heroicons/react/24/outline';
 
 // Define the ChatInterfaceProps interface
 interface ChatInterfaceProps {
@@ -12,9 +12,11 @@ interface ChatInterfaceProps {
     interimTranscript: string;
     inputMessage: string;  // Add this new prop
     setInputMessage: React.Dispatch<React.SetStateAction<string>>;  // Add this new prop
+    isListening: boolean;
+    toggleListening: () => void;
 }
 
-export default function ChatInterface({ messages, onNewMessage, interimTranscript, inputMessage, setInputMessage }: ChatInterfaceProps) {
+export default function ChatInterface({ messages, onNewMessage, interimTranscript, inputMessage, setInputMessage, isListening, toggleListening }: ChatInterfaceProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -108,11 +110,19 @@ export default function ChatInterface({ messages, onNewMessage, interimTranscrip
                             className="chat-input"
                         />
                         <button 
+                            type="button"
+                            onClick={toggleListening}
+                            className={`voice-button ${isListening ? 'listening' : ''}`}
+                            aria-label={isListening ? 'Stop Listening' : 'Start Listening'}
+                        >
+                            <MicrophoneIcon className="h-6 w-6" />
+                        </button>
+                        <button 
                             type="submit" 
                             className="send-button flex flex-row"
                             disabled={isLoading}
                         >
-                            <PaperAirplaneIcon className ="h-6 w-6 pr-2" /> Send
+                            <PaperAirplaneIcon className="h-6 w-6 pr-2" /> Send
                         </button>
                     </div>
                 </form>

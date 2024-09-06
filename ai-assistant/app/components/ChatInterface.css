@@ -92,8 +92,8 @@
 }
 
 .input-container {
-  display: flex; /* Flexbox for input and button */
-  gap: 0.5rem; /* Space between input and button */
+  display: flex;
+  align-items: center;
 }
 
 .chat-input {
@@ -113,4 +113,21 @@
 
 .send-button:hover {
   @apply bg-brand-orange-dark; /* Darker orange on hover */
+}
+
+.voice-button {
+  margin-left: 8px;
+  padding: 8px;
+  background-color: #f3f4f6;
+  border-radius: 50%;
+  transition: background-color 0.3s;
+}
+
+.voice-button:hover {
+  background-color: #e5e7eb;
+}
+
+.voice-button.listening {
+  background-color: #ef4444;
+  color: white;
 }
