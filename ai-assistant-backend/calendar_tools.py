@@ -14,6 +14,8 @@ SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
 # logging.basicConfig(level=logging.DEBUG)
 
+
+# Helper functions
 def get_cached_google_calendar_events(target_date: str = None, cache_duration: int = 15):
     """
     Fetches and caches Google Calendar events.
@@ -40,6 +42,15 @@ def get_cached_google_calendar_events(target_date: str = None, cache_duration: i
     logging.info(f"Fetched and cached new calendar events for {target_date}")
     return events
 
+def parse_time(time_str):
+        # Try parsing 24-hour format
+        try:
+            return datetime.datetime.strptime(time_str, "%H:%M").time()
+        except ValueError:
+            # Else, try parsing 12-hour format
+            return datetime.datetime.strptime(time_str, "%I%p").time()
+
+# Tools (functions) to be called by model
 def get_calendar_events(date: str = None):
     """
     Fetches google calendar events from cache
@@ -61,13 +72,6 @@ def create_calendar_event(date: str, time: str, description: str, location: str 
     :param duration: The duration of the event in hours (optional)
     :return: The result of the event creation
     """
-    def parse_time(time_str):
-        # Try parsing 24-hour format
-        try:
-            return datetime.datetime.strptime(time_str, "%H:%M").time()
-        except ValueError:
-            # Else, try parsing 12-hour format
-            return datetime.datetime.strptime(time_str, "%I%p").time()
 
     # If time is provided as a range (e.g., "09:00-17:00" or "9am-5pm"), use it directly
     if '-' in time:
@@ -264,7 +268,7 @@ def get_google_calendar_events(target_date: str = None):
         logging.error(f"An error occurred: {error}")
         return []
 
-
+# Functions for interacting with Google Calendar API
 def create_google_calendar_event(date: str, time: str, description: str, location: str = None, duration: float = 1):
     creds = None
     if os.path.exists("token.json"):

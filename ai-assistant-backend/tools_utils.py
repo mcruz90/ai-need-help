@@ -45,39 +45,19 @@ tools = [
     },
     {
       "name": "edit_calendar_event",
-      "description": "Edits an existing calendar event. The event is identified by its date and original description. The function then updates the event with the new description and other optional parameters.",
-      "parameter_definitions": {
-            "date": {
-                "description": "Date of the event in YYYY-MM-DD format",
-                "type": "str",
-                "required": True
+      "description": "Edits an existing calendar event",
+      "parameters": {
+            "type": "object",
+            "properties": {
+                "date": {"type": "string", "description": "The date of the event in YYYY-MM-DD format"},
+                "original_description": {"type": "string", "description": "The original description of the event in the calendar"},
+                "new_description": {"type": "string", "description": "The new description to be applied to the event"},
+                "time": {"type": "string", "description": "The new time of the event in HH:MM format or HH:MM-HH:MM format (optional)"},
+                "location": {"type": "string", "description": "The new venue or location of the event (optional)"},
+                "duration": {"type": "integer", "description": "The new duration of the event in hours (optional)"}
             },
-            "original_description": {
-                "description": "The current description of the event in the calendar",
-                "type": "str",
-                "required": True
-            },
-            "new_description": {
-                "description": "The new description to be applied to the event",
-                "type": "str",
-                "required": True
-            },
-            "time": {
-                "description": "New time of the event in HH:MM format or HH:MM-HH:MM format",
-                "type": "str",
-                "required": False
-            },
-            "location": {
-                "description": "New venue or location of the event, or 'None' if not specified",
-                "type": "str",
-                "required": False
-            },
-            "duration": {
-                "description": "New duration of the event in hours",
-                "type": "int",
-                "required": False
-            }
-      }
+            "required": ["date", "original_description", "new_description"]
+        }
     },
     {
       "name": "delete_calendar_event",
