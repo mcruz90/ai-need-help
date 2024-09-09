@@ -68,4 +68,5 @@ main_copy.py
 **/token.json
 **/credentials.json
 **/DEV_delete_db_data.py
-
+**/agent_conversation_data
+**/ai-assistant-backend/tools_utils.py

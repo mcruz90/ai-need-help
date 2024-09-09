@@ -41,7 +41,7 @@ def router_agent(user_input, chat_history, relevant_context) -> dict:
     if agent_type == 'calendar':
         return handle_calendar_query(user_input, chat_history, updated_preamble)
     else:
-        return handle_general_query(user_input)
+        return handle_general_query(user_input, chat_history)
 
 def handle_calendar_query(user_input, chat_history, updated_preamble) -> dict:
     """
@@ -54,13 +54,13 @@ def handle_calendar_query(user_input, chat_history, updated_preamble) -> dict:
 
     return response
 
-def handle_general_query(user_input) -> dict:
+def handle_general_query(user_input, chat_history) -> dict:
     """
     Handle the general query
     """
     print(f"Performing web search actions for input message: {user_input}")
 
-    result = web_search_agent.invoke({"input": user_input})
+    result = web_search_agent.invoke({"input": user_input, "preamble": chat_history})
     response = {"role": "Chatbot", "message": result["output"]}
     return response
 
