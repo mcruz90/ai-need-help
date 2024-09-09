@@ -1,18 +1,23 @@
 from fastapi import APIRouter
-from fastapi.responses import Response, StreamingResponse
-from models import ChatRequest, Message, Event
-from utils import process_events, handle_exception
-from config import cohere_client
+from fastapi.responses import StreamingResponse
+from models import ChatRequest
+from utils import handle_exception
 from datetime import date
-from tools_utils import tools, functions_map
+from calendar_tools import get_google_calendar_events
+from db import store_conversation, get_relevant_conversations, get_recent_conversations
+from router_agent import router_agent
 
+# Define the APIRouter for the chat route
 chat_route = APIRouter(prefix="/api/chat")
+
+# Define the APIRouter for the calendar route
+calendar_route = APIRouter(prefix="/api/calendar")
 
 model='command-r-plus-08-2024'
 
 preamble=f'''
         ## Task & Context
-        You are an expert personal assistant with 10 years experience who helps users with their calendar and are also an expert at answering general questions from your internal knowledge.
+        You are an expert personal assistant named 'Aiko'with 10 years experience who helps users with their calendar and are also an expert at answering general questions from your internal knowledge.
         When answering questions related to calendars, you must make sure that a new event does not overlap with any existing event.vent and
         You are very precise and detail-oriented with your responses. For example, you cannot just
         say "You have an event scheduled for tomorrow", you must state the description, date and time.
@@ -27,69 +32,46 @@ preamble=f'''
 
 @chat_route.post("/")
 async def chat(request: ChatRequest):
+    """
+    This is the main chat route that handles the chat history, retrieves relevant conversations, generates tool calls, and streams the response.
+    params:
+        request: ChatRequest from the client
+    returns:
+        response: StreamingResponse to the client
+    """
     try:
         chat_history = []
 
+        # use model Message to format the current chat turn
         for msg in request.messages[:-1]:
             role = "User" if msg.role == "User" else "Chatbot"
             chat_history.append({"role": role, "message": msg.content})
         
-        # Step 1: Get the last message (user's input)
+        # Get the last message (user's input)
         user_message = request.messages[-1].content
+        
+        # Retrieve relevant past conversations from the database and add to preamble
+        relevant_conversations = get_relevant_conversations(user_message)
+        relevant_context = "\n\nRelevant past conversations:\n" + "\n".join(relevant_conversations)
+        updated_preamble = preamble + relevant_context
 
-        # Step 2: Generate tool calls (if any)    
-        response = cohere_client.chat(
-            message=user_message,
-            model=model,
-            preamble=preamble,
-            tools=tools,
-            chat_history=chat_history
-        )
-
-        while True:
-            if response.tool_calls:
-                tool_calls = response.tool_calls
-                print(f'Tool calls: {tool_calls}')
-                
-                if response.text:
-                    print("Tool plan:")
-                    print(response.text,"\n")
-                print("Tool calls:")
-                for call in tool_calls:
-                    print(f"Tool name: {call.name} | Parameters: {call.parameters}")
-                print("="*50)
-                
-                # Step 3: Get tool results
-                tool_results = []
-                for tc in tool_calls:
-                    tool_call = {"name": tc.name, "parameters": tc.parameters}
-                    tool_output = functions_map[tc.name](**tc.parameters)
-                    tool_results.append({"call": tool_call, "outputs": [tool_output]})
-
-                # Step 4: Generate response and citations
-                response = cohere_client.chat(
-                    message="",
-                    model=model,
-                    preamble=preamble,
-                    tools=tools,
-                    tool_results=tool_results,
-                    chat_history=response.chat_history
-                )
-            else:
-                # No tool calls, break the loop
-                break
+        # Route the user message to the appropriate agent and get the response
+        router_response = router_agent(user_message, chat_history, updated_preamble)
                 
         # Append the current chat turn to the chat history
-        chat_history = response.chat_history
+        chat_history.append(router_response)
+
+        # Store the conversation in the database
+        store_conversation(user_message, router_response["message"])
 
         print("Final response:")
-        print(response.text)
+        print(router_response["message"])
         print("="*50)
 
-        # Define the event stream generator function
+        # Define the event stream generator function to stream the response to the client
         async def event_stream():
-            if response.text:
-                for chunk in response.text:
+            if router_response:
+                for chunk in router_response["message"]:
                     yield chunk
             else:
                 yield "No response generated."
@@ -99,3 +81,56 @@ async def chat(request: ChatRequest):
 
     except Exception as e:
         return handle_exception(e)
+
+@chat_route.get("/history")
+async def get_chat_history(query: str):
+    """
+    This route retrieves relevant conversations from the database based on the user's query.
+    params:
+        query: str
+    returns:
+        conversations: list of relevant conversations
+    """
+    try:
+        relevant_convs = get_relevant_conversations(query)
+        return {"conversations": relevant_convs}
+    except Exception as e:
+        return handle_exception(e)
+
+@calendar_route.get("/events")
+async def get_events(date: str):
+    """
+    This route retrieves events from the user's Google Calendar for a given date.
+    params:
+        date: str
+    returns:
+        events: list of events
+    """
+    try:
+        events = get_google_calendar_events(date)
+        return {"events": events}
+    except Exception as e:
+        return handle_exception(e)
+
+@chat_route.get("/past-conversations")
+async def get_past_conversations():
+    """
+    This route retrieves recent conversations from the database.
+    returns:
+        conversations: list of recent conversations
+    """
+    try:
+        recent_convs = get_recent_conversations(n_results=10)
+        formatted_convs = [
+            {
+                "id": conv["id"],
+                "title": conv["document"].split("\n")[0][:50] + "...",  # Use first 50 chars of user input as title
+                "timestamp": conv["metadata"]["timestamp"]
+            }
+            for conv in recent_convs
+        ]
+        return {"conversations": formatted_convs}
+    except Exception as e:
+        return handle_exception(e)
+
+all_routes = [chat_route, calendar_route]

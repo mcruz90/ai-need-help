@@ -1,10 +1,21 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routes import chat_route
+from routes import all_routes
 from dotenv import load_dotenv
 from config import CORS_ORIGINS
+from db import client as db_client
+from contextlib import asynccontextmanager
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Initialize ChromaDB client
+    db_client.heartbeat()
+    print("ChromaDB client initialized")
+    yield
+    # Shutdown: Perform any cleanup if necessary
+    print("Shutting down")
+
+app = FastAPI(lifespan=lifespan)
 
 # Configure CORS
 app.add_middleware(
@@ -15,5 +26,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include the chat route
-app.include_router(chat_route)
+@app.on_event("startup")
+async def startup_event():
+    # Initialize ChromaDB client
+    db_client.heartbeat()
+
+# Include all routes
+for route in all_routes:
+    print(f"Registering routes with prefix: {route.prefix}")
+    app.include_router(route)
+    for r in route.routes:
+        print(f"  - {r.methods} {r.path}")
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

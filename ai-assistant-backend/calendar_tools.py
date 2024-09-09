@@ -170,6 +170,7 @@ def delete_calendar_event(date: str, time: str, description: str):
     # Now call delete_google_calendar_event with the found event_id
     return delete_google_calendar_event(event_id)
 
+# Google Calendar API functions
 def get_google_calendar_events(target_date: str = None):
     """Fetches events from all of the user's Google Calendars for the specified date or current month."""
     creds = None

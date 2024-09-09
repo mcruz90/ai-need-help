@@ -1,5 +1,5 @@
 import os
-from config import tavily_client, cohere_client, cohere_embeddings
+from config import tavily_client, cohere_embeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import WebBaseLoader
 from langchain_community.vectorstores import FAISS
@@ -70,6 +70,7 @@ preamble = """
 You are an expert who answers the user's question with the most relevant datasource.
 You are equipped with an internet search tool and a special vectorstore of information about agents prompt engineering and adversarial attacks.
 If the query covers the topics of agents, prompt engineering or adversarial attacks, use the vectorstore search.
+Otherwise, use the internet search tool.
 """
 
 # Prompt
@@ -86,9 +87,16 @@ agent_executor = AgentExecutor(
     agent=agent, tools=[internet_search, vectorstore_search], verbose=True
 )
 
-agent_executor.invoke(
-    {
-        "input": "Who will the Bears draft first in the NFL draft?",
-        "preamble": preamble,
-    }
-)
+#agent_executor.invoke(
+#    {
+#        "input": "What are some of the best open source vector databases?",
+#        "preamble": preamble,
+#    }
+#)
+
+#res = agent_executor.invoke(
+#    {
+#        "input": "Who won the US Open this year?",
+#        "preamble": preamble,
+#    }
+#)

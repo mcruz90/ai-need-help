@@ -2,7 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import { streamResponse, sendChatMessage, ChatMessage } from '../utils/api';
 
 export function useChat() {
-  const [messages, setMessages] = useState<Array<{ text: string; isUser: boolean }>>([]);
+  const [messages, setMessages] = useState<Array<{ text: string; isUser: boolean; isLoading?: boolean }>>([]);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const isProcessingRef = useRef(false);
 
@@ -10,14 +10,14 @@ export function useChat() {
     if (isProcessingRef.current) return;
     isProcessingRef.current = true;
 
-    setMessages(prev => [...prev, { text: message, isUser: true }, { text: '', isUser: false }]);
+    setMessages(prev => [...prev, { text: message, isUser: true }, { text: '', isUser: false, isLoading: true }]);
 
     try {
       const reader = await sendChatMessage(message, chatHistory);
       const fullResponse = await streamResponse(reader, (text) => {
         setMessages(prev => {
           const newMessages = [...prev];
-          newMessages[newMessages.length - 1].text = text;
+          newMessages[newMessages.length - 1] = { text, isUser: false, isLoading: false };
           return newMessages;
         });
       });
@@ -30,7 +30,11 @@ export function useChat() {
 
     } catch (error) {
       console.error('Error:', error);
-      setMessages(prev => [...prev, { text: "Sorry, an error occurred.", isUser: false }]);
+      setMessages(prev => {
+        const newMessages = [...prev];
+        newMessages[newMessages.length - 1] = { text: "Sorry, an error occurred.", isUser: false, isLoading: false };
+        return newMessages;
+      });
     } finally {
       isProcessingRef.current = false;
     }

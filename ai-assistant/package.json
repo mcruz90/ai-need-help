@@ -3,16 +3,18 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -H 0.0.0.0",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
   },
   "dependencies": {
     "@heroicons/react": "^2.1.5",
+    "@notionhq/client": "^2.2.15",
     "@types/react-calendar": "^3.9.0",
     "@types/react-syntax-highlighter": "^15.5.13",
     "cohere-ai": "^7.13.0",
+    "gapi-script": "^1.2.0",
     "ics": "^3.7.6",
     "lodash": "^4.17.21",
     "next": "14.2.7",

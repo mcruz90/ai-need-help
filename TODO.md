@@ -1,16 +1,18 @@
-# TODO List for AI Assistant Project
+# TODO List for AIko
 
 ## High Priority
+
 - [x] Implement streaming functionality for AI responses
 - [x] Maintain chat history for context-aware conversations
 - [x] Implement chat history length limit or summarization for efficiency
 - [ ] Add error handling for different types of errors (network issues, API limits, etc.)
-- [ ] Implement local storage or backend database for persisting chat history between sessions
+- [x] Implement local storage or backend database for persisting chat history between sessions
 - [x] Implement proper loading states for asynchronous operations
 - [ ] Add user-friendly error messages
 - [ ] Optimize rendering of large chat histories
 
 ## Medium Priority
+
 - [x] Add loading indicators (typing animation) while waiting for AI response
 - [x] Implement Markdown rendering for formatted AI responses
 - [x] Allow users to adjust AI parameters (temperature, max tokens)
@@ -30,6 +32,7 @@
 - [ ] Enhance the design of the calendar component to match the overall aesthetic
 
 ## Low Priority
+
 - [x] Expand VoiceInterface for full voice-interactive experience
 - [ ] Implement user authentication for personalized experiences
 - [ ] Add option to export chat history
@@ -50,6 +53,7 @@
 - [ ] Test and optimize for screen readers
 
 ## Next Steps
+
 1. Implement chat history length limit or summarization for efficiency
 2. Add comprehensive error handling and user-friendly error messages
 3. Implement local storage or a backend database for persisting chat history
@@ -59,6 +63,7 @@
 7. Implement unit tests and integration tests for critical components
 
 ## Ideas for Future Expansion
+
 - Multi-language support
 - Integration with calendar or task management apps
 - Customizable AI personality or expertise areas
