@@ -4,7 +4,7 @@
 
 - [x] Implement streaming functionality for AI responses
 - [x] Maintain chat history for context-aware conversations
-- [x] Implement chat history length limit or summarization for efficiency
+- [ ] Implement chat history length limit or summarization for efficiency
 - [ ] Add error handling for different types of errors (network issues, API limits, etc.)
 - [x] Implement local storage or backend database for persisting chat history between sessions
 - [x] Implement proper loading states for asynchronous operations
@@ -30,6 +30,21 @@
   - [x] Enhance the AI's ability to understand and respond to time-related queries
 - [ ] Improve mobile responsiveness of the interface
 - [ ] Enhance the design of the calendar component to match the overall aesthetic
+- [x] Implement ChromaDB for enhanced AI functionality
+  - [x] Research and evaluate ChromaDB for the project
+  - [x] Set up ChromaDB in the development environment
+  - [x] Implement basic ChromaDB functionality
+  - [ ] Integrate ChromaDB with existing AI assistant features
+- [ ] Enhance Notion API integration
+  - [x] Set up initial Notion API connection
+  - [x] Create basic Notion display component on the front end
+  - [ ] Improve organization and layout of Notion data display
+  - [ ] Implement proper error handling for Notion API requests
+  - [ ] Create functions to fetch and update Notion pages/databases
+  - [ ] Integrate Notion data with AI assistant functionality
+  - [ ] Implement user authentication for Notion integration
+  - [ ] Add user interface elements for interacting with Notion data
+  - [ ] Optimize performance of Notion data retrieval and rendering
 
 ## Low Priority
 
@@ -46,9 +61,8 @@
 - [ ] Add integration tests for API interactions
 - [ ] Set up end-to-end testing for core user flows
 - [ ] Create comprehensive API documentation
-- [ ] Write user guides and FAQs
+- [ ] Write more detailed user guides and FAQs
 - [ ] Maintain up-to-date developer documentation
-- [ ] Ensure the application is fully keyboard navigable
 - [ ] Implement proper ARIA labels and roles
 - [ ] Test and optimize for screen readers
 
@@ -61,6 +75,8 @@
 5. Enhance the design of the calendar component to match the overall aesthetic
 6. Start working on user authentication for personalized experiences
 7. Implement unit tests and integration tests for critical components
+8. Research and properly set up ChromaDB to enhance AI memory and retrieval capabilities
+9. Refine and expand Notion API integration, focusing on improving the display and organization of Notion data
 
 ## Ideas for Future Expansion
 
@@ -72,3 +88,4 @@
 - Set up a CI/CD pipeline for automated testing and deployment
 - Configure proper error logging and monitoring for production environment
 - Implement versioning and release management strategy
+- Enhance Notion integration with advanced features (e.g., task management, note-taking)

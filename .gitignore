@@ -8,6 +8,7 @@
 
 # testing
 **/coverage
+**/tests
 
 # next.js
 **/ai-assistant/.next/
@@ -62,6 +63,7 @@
 .Trashes
 ehthumbs.db
 Thumbs.db
+.pytest_cache
 
 # other private files
 main_copy.py
@@ -69,4 +71,3 @@ main_copy.py
 **/credentials.json
 **/DEV_delete_db_data.py
 **/agent_conversation_data
-**/ai-assistant-backend/tools_utils.py
