@@ -1,3 +1,5 @@
+// Use webkitSpeechRecognition for voice recognition
+// Define the setupVoiceRecognition function to set up the voice recognition
 export function setupVoiceRecognition(
   onInterimTranscript: (transcript: string) => void,
   onFinalTranscript: (transcript: string) => void
@@ -5,28 +7,31 @@ export function setupVoiceRecognition(
   let recognition: any = null;
   let isRecognitionActive = false;
 
+  // Check if webkitSpeechRecognition is supported in the browser
   if ('webkitSpeechRecognition' in window) {
     recognition = new (window as any).webkitSpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = true;
 
+    // Define the onstart event handler to log when voice recognition starts
     recognition.onstart = () => {
       console.log('Voice recognition started');
       isRecognitionActive = true;
     };
 
+    // Define the onerror event handler to log any errors that occur during voice recognition
     recognition.onerror = (event: any) => {
       console.error('Voice recognition error:', event.error);
       if (event.error === 'no-speech') {
-        // Instead of restarting immediately, we'll stop and let the onend handler restart
         recognition.stop();
       }
     };
 
+    // Define the onend event handler to log when voice recognition ends
     recognition.onend = () => {
       console.log('Voice recognition ended');
       isRecognitionActive = false;
-      // Only restart if we're supposed to be listening
+      
       if (isListening) {
         setTimeout(() => {
           if (!isRecognitionActive && isListening) {

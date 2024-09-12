@@ -8,16 +8,15 @@ interface NotionPage {
       title: Array<{ plain_text: string }>;
     };
   };
-  // Add other properties as needed
 }
 
 interface NotionDatabase {
   id: string;
   url: string;
   title: Array<{ plain_text: string }>;
-  // Add other properties as needed
 }
 
+// Define the useNotion hook to fetch and manage Notion data
 export function useNotion() {
   const [pages, setPages] = useState<NotionPage[]>([]);
   const [databases, setDatabases] = useState<NotionDatabase[]>([]);

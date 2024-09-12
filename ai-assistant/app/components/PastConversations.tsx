@@ -7,10 +7,12 @@ interface Conversation {
   timestamp: string;
 }
 
+// Define the PastConversations component
 const PastConversations: React.FC<{ onSelectConversation: (id: string) => void }> = ({ onSelectConversation }) => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Use effect to fetch conversations from the API
   useEffect(() => {
     const fetchConversations = async () => {
       try {

@@ -7,7 +7,7 @@
 }
 
 .chat-box {
-  border-radius: 0.5rem; /* Rounded corners */
+  border-radius: 0.5rem;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -83,12 +83,11 @@
   background-color: #cbd5e0;
 }
 
-/* Input form styles */
 .input-form {
-  border-top: 1px solid #e5e7eb; /* Top border */
-  padding: 1rem; /* Padding */
-  background-color: #f3f4f6; /* Light background for input area */
-  border-radius: 0 0 0.5rem 0.5rem; /* Rounded corners for input area */
+  border-top: 1px solid #e5e7eb; 
+  padding: 1rem; 
+  background-color: #f3f4f6; 
+  border-radius: 0 0 0.5rem 0.5rem; 
 }
 
 .input-container {
@@ -97,22 +96,22 @@
 }
 
 .chat-input {
-  flex-grow: 1; /* Allow input to grow */
-  border: 1px solid #d1d5db; /* Border */
-  border-radius: 9999px; /* Fully rounded */
-  padding: 0.5rem 1rem; /* Padding */
-  background-color: #ffffff; /* White background for input */
+  flex-grow: 1; 
+  border: 1px solid #d1d5db;
+  border-radius: 9999px; 
+  padding: 0.5rem 1rem; 
+  background-color: #ffffff; 
 }
 
 .send-button {
   @apply bg-brand-orange text-white;
-  border-radius: 9999px; /* Fully rounded */
-  padding: 0.5rem 1.5rem; /* Padding */
-  transition: background-color 0.4s; /* Transition effect */
+  border-radius: 9999px; 
+  padding: 0.5rem 1.5rem; 
+  transition: background-color 0.4s; 
 }
 
 .send-button:hover {
-  @apply bg-brand-orange-dark; /* Darker orange on hover */
+  @apply bg-brand-orange-dark; 
 }
 
 .voice-button {

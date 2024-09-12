@@ -2,21 +2,24 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import EventList from './EventList';
 import './calendar.css';
 import { API_URL } from '../../utils/api';
-import Calendar from 'react-calendar'; // Import react-calendar
-import 'react-calendar/dist/Calendar.css'; // Import react-calendar styles
+import Calendar from 'react-calendar'; 
+import 'react-calendar/dist/Calendar.css'; 
 
+// Define types for the calendar
 type ValuePiece = Date | null;
 type Value = ValuePiece | [ValuePiece, ValuePiece];
 
+// Define types for the events
 interface Event {
   id: string;
-  date: string; // Changed to string to match EventList.tsx
+  date: string;
   time: string;
   description: string;
   location?: string;
   duration: number;
 }
 
+// Define the Calendar component
 const CalendarComponent: React.FC = () => {
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -29,8 +32,10 @@ const CalendarComponent: React.FC = () => {
     return `${year}-${month}-${day}`;
   }, []);
 
+  // Memoize the current date string
   const currentDateString = useMemo(() => formatDate(currentDate), [currentDate, formatDate]);
 
+  // Function to fetch events from the API
   const fetchEvents = useCallback(async (dateString: string) => {
     setIsLoading(true);
     try {
@@ -42,7 +47,7 @@ const CalendarComponent: React.FC = () => {
       if (data.events) {
         const formattedEvents: Event[] = data.events.map((event: any) => ({
           ...event,
-          date: event.date.split('T')[0], // Keep only the date part
+          date: event.date.split('T')[0],
         }));
         setEvents(formattedEvents);
       }
@@ -53,6 +58,7 @@ const CalendarComponent: React.FC = () => {
     }
   }, []);
 
+  // Effect to fetch events when the current date changes
   useEffect(() => {
     const eventsForCurrentDate = events.some(event => event.date === currentDateString);
     if (!eventsForCurrentDate) {
@@ -60,12 +66,14 @@ const CalendarComponent: React.FC = () => {
     }
   }, [currentDateString, events, fetchEvents]);
 
+  // Function to handle date changes
   const handleDateChange = (value: Value) => {
     if (value instanceof Date) {
       setCurrentDate(value);
     }
   };
 
+  // Render the Calendar component
   return (
     <div className="bg-white shadow-lg rounded-lg p-4 w-full">
       <div className="flex flex-col gap-6">

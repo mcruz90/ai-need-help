@@ -7,6 +7,7 @@ import '../markdown-styles.css';
 import { DocumentDuplicateIcon, PaperAirplaneIcon, MicrophoneIcon } from '@heroicons/react/24/outline';
 import { API_URL } from '../utils/api';
 
+// Define the ChatInterfaceProps interface 
 interface ChatInterfaceProps {
     messages: Array<{ text: string; isUser: boolean; isLoading?: boolean }>;
     onNewMessage: (message: string) => Promise<void>;
@@ -17,6 +18,7 @@ interface ChatInterfaceProps {
     toggleListening: () => void;
 }
 
+// Define the ChatInterface component
 export default function ChatInterface({ messages, onNewMessage, interimTranscript, inputMessage, setInputMessage, isListening, toggleListening }: ChatInterfaceProps) {
     const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -26,6 +28,7 @@ export default function ChatInterface({ messages, onNewMessage, interimTranscrip
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, interimTranscript]);
 
+    // Function to handle form submission
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (inputMessage.trim()) {
@@ -34,6 +37,7 @@ export default function ChatInterface({ messages, onNewMessage, interimTranscrip
         }
     };
 
+    // Function to copy text to clipboard
     const copyToClipboard = (text: string, index: number) => {
         navigator.clipboard.writeText(text).then(() => {
             setCopiedIndex(index);
@@ -41,12 +45,13 @@ export default function ChatInterface({ messages, onNewMessage, interimTranscrip
         });
     };
 
+    // Function to handle selecting a past conversation
     const handleSelectConversation = async (conversationId: string) => {
         try {
             const response = await fetch(`${API_URL}/api/conversation/${conversationId}`);
             if (!response.ok) throw new Error('Failed to fetch conversation');
             const data = await response.json();
-            // Assuming onNewMessage can handle loading a full conversation
+            
             await onNewMessage(data.messages.join('\n'));
             setShowPastConversations(false);
         } catch (error) {

@@ -1,5 +1,6 @@
 import React from 'react';
 
+// Define the Event interface
 interface Event {
   id: string;
   date: string;
@@ -9,12 +10,15 @@ interface Event {
   duration: number;
 }
 
+// Define the props for the EventList component
 interface EventListProps {
   events: Event[];
   date: string;
 }
 
+// Define the EventList component 
 const EventList: React.FC<EventListProps> = ({ events, date }) => {
+  // Filter events for the specified date
   const eventsForDate = events.filter(event => event.date === date);
 
   return (

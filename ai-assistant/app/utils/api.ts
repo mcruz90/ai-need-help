@@ -5,6 +5,7 @@ export interface ChatMessage {
   content: string;
 }
 
+// Define the streamResponse function to handle the streaming of responses from the API
 export async function streamResponse(reader: ReadableStreamDefaultReader<Uint8Array>, updateCallback: (text: string) => void) {
   let fullResponse = '';
   while (true) {
@@ -18,6 +19,7 @@ export async function streamResponse(reader: ReadableStreamDefaultReader<Uint8Ar
   return fullResponse;
 }
 
+// Define the sendChatMessage function to send a chat message to the API
 export async function sendChatMessage(message: string, chatHistory: ChatMessage[]) {
   const response = await fetch(`${API_URL}/api/chat`, {
     method: 'POST',

@@ -10,33 +10,38 @@ import { setupVoiceRecognition } from './utils/voiceRecognition';
 import './components/ChatInterface.css';
 import './components/CodeBlock.css';
 
+// This is the main page of the app; components are imported from other files and used to build the UI
 export default function Home() {
   const { messages, handleNewMessage } = useChat();
   const [interimTranscript, setInterimTranscript] = useState('');
   const [inputMessage, setInputMessage] = useState('');
   const [isListening, setIsListening] = useState(false);
 
+  // Interim transcript is the partial transcript as the user is speaking
   const handleInterimTranscript = useCallback((transcript: string) => {
     setInterimTranscript(transcript);
   }, []);
 
+  // Final transcript is the full transcript after the user is done speaking
   const handleFinalTranscript = useCallback((transcript: string) => {
     const finalMessage = transcript.trim();
-    setInputMessage(''); // Clear the input message
+    setInputMessage(''); 
     setInterimTranscript('');
     if (finalMessage) {
-      handleNewMessage(finalMessage); // Automatically submit the message
+      handleNewMessage(finalMessage); 
     }
   }, [handleNewMessage]);
 
   const [voiceRecognition, setVoiceRecognition] = useState<any>(null);
 
+  // Setup voice recognition
   useEffect(() => {
     const recognition = setupVoiceRecognition(handleInterimTranscript, handleFinalTranscript);
     setVoiceRecognition(recognition);
     console.log('Voice recognition setup:', recognition);
   }, [handleInterimTranscript, handleFinalTranscript]);
 
+  // Toggle listening to start and stop voice recognition
   const toggleListening = useCallback(() => {
     if (isListening) {
       console.log('Stopping voice recognition');

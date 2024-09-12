@@ -32,9 +32,7 @@
   font-family: 'Courier New', Courier, monospace;
 }
 
-/* Removed pre styles as they're now handled by the CodeBlock component */
-
 .markdown-content {
   position: relative;
-  padding: 0.5rem; /* Equivalent to pb-8 in Tailwind */
+  padding: 0.5rem;
 }

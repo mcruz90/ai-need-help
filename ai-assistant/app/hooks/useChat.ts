@@ -6,6 +6,7 @@ export function useChat() {
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const isProcessingRef = useRef(false);
 
+  // Define the handleNewMessage function where the chatbot is triggered
   const handleNewMessage = useCallback(async (message: string) => {
     if (isProcessingRef.current) return;
     isProcessingRef.current = true;

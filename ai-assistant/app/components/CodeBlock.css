@@ -11,7 +11,7 @@
 .code-block-container pre {
   white-space: pre;
   overflow-x: auto;
-  word-wrap: normal; /* Allow horizontal scroll only within the code block */
+  word-wrap: normal; 
   margin: 0;
   padding: 1em;
 }
