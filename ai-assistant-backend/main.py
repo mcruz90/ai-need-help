@@ -1,7 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routes import all_routes
-from dotenv import load_dotenv
 from config import CORS_ORIGINS
 from db import client as db_client
 from contextlib import asynccontextmanager
@@ -25,11 +24,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-@app.on_event("startup")
-async def startup_event():
-    # Initialize ChromaDB client
-    db_client.heartbeat()
 
 # Include all routes
 for route in all_routes:

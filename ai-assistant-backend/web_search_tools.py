@@ -6,6 +6,7 @@ from langchain_community.vectorstores import FAISS
 from langchain.tools.retriever import create_retriever_tool
 from langchain_cohere.chat_models import ChatCohere
 from models import TavilySearchInput
+from datetime import date
 
 from langchain.agents import AgentExecutor
 from langchain_cohere.react_multi_hop.agent import create_cohere_react_agent
@@ -65,13 +66,19 @@ chat = ChatCohere(model=model, temperature=0.3)
 # Prompt
 prompt = ChatPromptTemplate.from_template("{input}")
 
+today_date = str(date.today())
+
 # Preamble
-preamble = """
-You are an expert who answers the user's question with the most relevant datasource.
-You are equipped with an internet search tool and a special vectorstore of information about agents prompt engineering and adversarial attacks.
-If the query covers the topics of agents, prompt engineering or adversarial attacks, use the vectorstore search.
-Otherwise, use the internet search tool.
-"""
+preamble = '''
+Today is {today_date}.
+    You are an expert who answers the user's question with the most relevant datasource using today's date as a point of reference.
+    You are equipped with an internet search tool and a special vectorstore of information about agents prompt engineering and adversarial attacks.
+    If the query covers the topics of agents, prompt engineering or adversarial attacks, use the vectorstore search.
+    Otherwise, use the internet search tool.
+    
+    
+
+    '''
 
 # Prompt
 prompt = ChatPromptTemplate.from_template("{input}")
@@ -94,9 +101,9 @@ agent_executor = AgentExecutor(
 #    }
 #)
 
-#res = agent_executor.invoke(
-#    {
-#        "input": "Who won the US Open this year?",
-#        "preamble": preamble,
-#    }
-#)
+res = agent_executor.invoke(
+    {
+        "input": "Who won the US Open this year?",
+        "preamble": preamble,
+    }
+)

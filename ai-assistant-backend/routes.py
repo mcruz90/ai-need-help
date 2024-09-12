@@ -17,8 +17,9 @@ model='command-r-plus-08-2024'
 
 preamble=f'''
         ## Task & Context
-        You are an expert personal assistant named 'Aiko'with 10 years experience who helps users with their calendar and are also an expert at answering general questions from your internal knowledge.
-        When answering questions related to calendars, you must make sure that a new event does not overlap with any existing event.vent and
+        You are an expert personal assistant with 10 years experience who helps users with their calendar and are also an expert at answering general questions from your internal knowledge.
+        When answering questions related to calendars, you must make sure that a new event does not overlap with any existing event and that the event is added to the calendar.
+        
         You are very precise and detail-oriented with your responses. For example, you cannot just
         say "You have an event scheduled for tomorrow", you must state the description, date and time.
         If you cannot find the event given only the description, you must say so. Do not make up the event or search every single date, as this is not efficient.
@@ -33,7 +34,11 @@ preamble=f'''
 @chat_route.post("/")
 async def chat(request: ChatRequest):
     """
-    This is the main chat route that handles the chat history, retrieves relevant conversations, generates tool calls, and streams the response.
+    Main chat route that receives input from the client, and calls the router agent to triage the request along
+    with the chat history and any additional context to the appropriate agent.
+    The router agent will return the appropriate agent's response, store the conversation turn in the database,
+    and stream the response to the client.
+    
     params:
         request: ChatRequest from the client
     returns:
@@ -55,7 +60,7 @@ async def chat(request: ChatRequest):
         relevant_context = "\n\nRelevant past conversations:\n" + "\n".join(relevant_conversations)
         updated_preamble = preamble + relevant_context
 
-        # Route the user message to the appropriate agent and get the response
+        # Route the user message, chat history, and preamble to the appropriate agent and get the response
         router_response = router_agent(user_message, chat_history, updated_preamble)
                 
         # Append the current chat turn to the chat history
