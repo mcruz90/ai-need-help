@@ -215,9 +215,9 @@ export function NotionDisplay() {
                   </a>
                 </div>
                 {expandedPages.has(page.id) && (
-                  <div className="mt-2 ml-6 p-2 bg-gray-100 rounded">
+                  <div className="mt-2 ml-6">
                     {pageContents[page.id] ? (
-                      <>{renderNotionContent(pageContents[page.id])}</>
+                      renderNotionContent(pageContents[page.id])
                     ) : (
                       <div>Loading...</div>
                     )}

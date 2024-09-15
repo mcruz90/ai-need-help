@@ -9,23 +9,9 @@ export function renderNotionContent(blocks: any[]): ReactNode {
   function flushList() {
     if (currentList.length > 0) {
       content.push(
-        <div key={`list-${content.length}`} className="bg-gray-100 rounded-lg p-4 mb-4 relative">
-          {currentListType === 'bulleted' 
-            ? <ul className="list-disc list-inside">{currentList}</ul>
-            : <ol className="list-decimal list-inside">{currentList}</ol>
-          }
-          <button 
-            onClick={() => copyToClipboard(currentList.map(item => 
-              React.isValidElement(item) ? item.props.children : ''
-            ).join('\n'))}
-            className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
-              <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" />
-            </svg>
-          </button>
-        </div>
+        currentListType === 'bulleted' 
+          ? <ul className="list-disc list-inside">{currentList}</ul>
+          : <ol className="list-decimal list-inside">{currentList}</ol>
       );
       currentList = [];
       currentListType = null;
@@ -109,31 +95,35 @@ export function renderNotionContent(blocks: any[]): ReactNode {
     }
 
     if (blockContent) {
-      content.push(
-        <div key={block.id} className="bg-gray-100 rounded-lg p-4 mb-4 relative">
-          {blockContent}
-          <button 
-            onClick={() => copyToClipboard(block[block.type].rich_text.map((text: any) => text.plain_text).join(''))}
-            className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
-              <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" />
-            </svg>
-          </button>
-        </div>
-      );
+      content.push(blockContent);
     }
   });
 
   flushList(); // Flush any remaining list items
 
-  return content;
+  const allContent = (
+    <div className="bg-gray-100 rounded-lg p-4 mb-4 relative">
+      {content}
+      <button 
+        onClick={() => copyToClipboard(blocks.map(block => 
+          block[block.type].rich_text.map((text: any) => text.plain_text).join('')
+        ).join('\n'))}
+        className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+          <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
+          <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" />
+        </svg>
+      </button>
+    </div>
+  );
+
+  return allContent;
 }
 
-export function renderRichText(richText: any[]): ReactNode {
+export function renderRichText(richText: any[]) {
   return richText.map((text: any, index: number) => {
-    let element: ReactNode = text.plain_text;
+    let element = text.plain_text;
     if (text.annotations.bold) {
       element = <strong key={index}>{element}</strong>;
     }
