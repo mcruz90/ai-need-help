@@ -191,42 +191,59 @@ export function NotionDisplay() {
         </div>
       </div>
       <div className="flex-1 overflow-y-auto pr-4">
-        <h3 className="text-lg font-semibold mb-2">Pages</h3>
+        <h3 className="text-lg font-semibold mb-4">Pages</h3>
         {paginatedPages.length === 0 ? (
           <p>No pages found.</p>
         ) : (
-          <ul className="mb-6">
-            {paginatedPages.map(page => (
-              <li key={page.id} className="mb-4">
-                <div className="flex items-center">
-                  <button 
-                    onClick={() => togglePageExpansion(page.id)}
-                    className="mr-2 p-1 bg-gray-200 rounded"
-                  >
-                    {expandedPages.has(page.id) ? '▼' : '▶'}
-                  </button>
-                  <a 
-                    href={page.url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline"
-                  >
-                    {getPageTitle(page)}
-                  </a>
-                </div>
-                {expandedPages.has(page.id) && (
-                  <div className="mt-2 ml-6">
-                    {pageContents[page.id] ? (
-                      renderNotionContent(pageContents[page.id])
-                    ) : (
-                      <div>Loading...</div>
-                    )}
+          <div className="bg-white rounded-lg shadow-md">
+            <ul className="divide-y divide-gray-200">
+              {paginatedPages.map(page => (
+                <li key={page.id} className="p-4 hover:bg-gray-50 transition-colors duration-150">
+                  <div className="flex items-center">
+                    <button 
+                      onClick={() => togglePageExpansion(page.id)}
+                      className="mr-3 p-1 bg-gray-200 rounded-full hover:bg-gray-300 transition-colors duration-150"
+                    >
+                      {expandedPages.has(page.id) ? (
+                        <svg className="w-4 h-4 text-gray-600" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" stroke="currentColor"><path d="M19 9l-7 7-7-7"></path></svg>
+                      ) : (
+                        <svg className="w-4 h-4 text-gray-600" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" stroke="currentColor"><path d="M9 5l7 7-7 7"></path></svg>
+                      )}
+                    </button>
+                    <a 
+                      href={page.url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline flex-grow"
+                    >
+                      {getPageTitle(page)}
+                    </a>
                   </div>
-                )}
-              </li>
-            ))}
-          </ul>
+                  {expandedPages.has(page.id) && (
+                    <div className="mt-4 ml-7">
+                      {pageContents[page.id] ? (
+                        renderNotionContent(pageContents[page.id])
+                      ) : (
+                        <div className="bg-gray-100 rounded-lg p-4 mb-4 shadow-inner">
+                          <div className="animate-pulse flex space-x-4">
+                            <div className="flex-1 space-y-4 py-1">
+                              <div className="h-4 bg-gray-300 rounded w-3/4"></div>
+                              <div className="space-y-2">
+                                <div className="h-4 bg-gray-300 rounded"></div>
+                                <div className="h-4 bg-gray-300 rounded w-5/6"></div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
+        
         <div className="flex justify-center mt-4">
           {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
             <button

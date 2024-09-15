@@ -41,16 +41,25 @@ async function handleMainNotionDataRequest() {
         page_size: 100,
       });
 
-      allPages = [...allPages, ...searchResponse.results as PageObjectResponse[]];
+      const pagesWithContent = (searchResponse.results as PageObjectResponse[]).filter(page => {
+        // Check if the page has properties other than just the title
+        return Object.keys(page.properties).length > 1 || 
+               (page.properties.title && 'title' in page.properties.title && 
+                page.properties.title.title.length > 0 && 
+                page.properties.title.title[0].plain_text.trim() !== '');
+      });
+
+      allPages = [...allPages, ...pagesWithContent];
       hasMore = searchResponse.has_more;
       startCursor = searchResponse.next_cursor ?? undefined;
 
       console.log("Fetched pages:", searchResponse.results.length);
+      console.log("Pages with content:", pagesWithContent.length);
       console.log("Has more:", hasMore);
       console.log("Next cursor:", startCursor);
     }
 
-    console.log("Total number of pages fetched:", allPages.length);
+    console.log("Total number of pages with content:", allPages.length);
 
     const databasesResponse = await notion.search({
       filter: {
@@ -71,9 +80,6 @@ async function handleMainNotionDataRequest() {
         }
       });
     });
-
-    console.log("Extracted years:", Array.from(years));
-    console.log("Extracted semesters:", Array.from(semesters));
 
     return NextResponse.json({
       pages: allPages,

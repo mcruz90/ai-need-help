@@ -1,6 +1,26 @@
 import React, { ReactNode } from 'react';
 import { copyToClipboard } from './utils';
 
+function getBlockText(block: any): string {
+  switch (block.type) {
+    case 'paragraph':
+    case 'heading_1':
+    case 'heading_2':
+    case 'heading_3':
+    case 'bulleted_list_item':
+    case 'numbered_list_item':
+    case 'to_do':
+    case 'toggle':
+    case 'quote':
+    case 'callout':
+      return block[block.type].rich_text.map((text: any) => text.plain_text).join('');
+    case 'code':
+      return block.code.rich_text.map((text: any) => text.plain_text).join('');
+    default:
+      return '';
+  }
+}
+
 export function renderNotionContent(blocks: any[]): ReactNode {
   const content: ReactNode[] = [];
   let currentList: ReactNode[] = [];
@@ -101,18 +121,50 @@ export function renderNotionContent(blocks: any[]): ReactNode {
 
   flushList(); // Flush any remaining list items
 
+  const handleCopy = () => {
+    const textContent = blocks.map(block => getBlockText(block)).join('\n');
+    copyToClipboard(textContent);
+    
+    // Create a prominent overlay for feedback
+    const overlay = document.createElement('div');
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+    overlay.style.display = 'flex';
+    overlay.style.justifyContent = 'center';
+    overlay.style.alignItems = 'center';
+    overlay.style.zIndex = '9999';
+
+    const message = document.createElement('div');
+    message.textContent = 'Content Copied!';
+    message.style.color = 'white';
+    message.style.fontSize = '24px';
+    message.style.padding = '20px';
+    message.style.backgroundColor = 'green';
+    message.style.borderRadius = '10px';
+
+    overlay.appendChild(message);
+    document.body.appendChild(overlay);
+
+    // Remove the overlay after 1.5 seconds
+    setTimeout(() => {
+      document.body.removeChild(overlay);
+    }, 1500);
+  };
+
   const allContent = (
-    <div className="bg-gray-100 rounded-lg p-4 mb-4 relative">
+    <div className="bg-white rounded-lg p-6 mb-4 relative shadow-md">
       {content}
       <button 
-        onClick={() => copyToClipboard(blocks.map(block => 
-          block[block.type].rich_text.map((text: any) => text.plain_text).join('')
-        ).join('\n'))}
-        className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
+        onClick={handleCopy}
+        className="absolute top-2 right-2 p-2 rounded-full text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+        title="Copy content"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-          <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
-          <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" />
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
         </svg>
       </button>
     </div>
