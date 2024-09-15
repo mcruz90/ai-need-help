@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import EventList from './EventList';
 import './calendar.css';
-import { API_URL } from '../../utils/api';
 import Calendar from 'react-calendar'; 
 import 'react-calendar/dist/Calendar.css'; 
 
@@ -25,48 +24,31 @@ const CalendarComponent: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
 
-  const formatDate = useCallback((date: Date): string => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+  const formatDate = useMemo(() => (date: Date): string => {
+    return date.toISOString().split('T')[0];
   }, []);
 
-  // Memoize the current date string
-  const currentDateString = useMemo(() => formatDate(currentDate), [currentDate, formatDate]);
-
-  // Function to fetch events from the API
-  const fetchEvents = useCallback(async (dateString: string) => {
+  const fetchEvents = useCallback(async (date: string) => {
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_URL}/api/calendar/events?date=${dateString}`);
-
-      if (!response.ok) throw new Error('Failed to fetch events');
-      
-      const data = await response.json();
-      if (data.events) {
-        const formattedEvents: Event[] = data.events.map((event: any) => ({
-          ...event,
-          date: event.date.split('T')[0],
-        }));
-        setEvents(formattedEvents);
+      const response = await fetch(`http://localhost:8000/api/calendar/events?date=${date}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
+      const data = await response.json();
+      setEvents(data.events);
     } catch (error) {
-      console.error('Error fetching events:', error);
+      console.error("Error fetching events:", error);
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  // Effect to fetch events when the current date changes
   useEffect(() => {
-    const eventsForCurrentDate = events.some(event => event.date === currentDateString);
-    if (!eventsForCurrentDate) {
-      fetchEvents(currentDateString);
-    }
-  }, [currentDateString, events, fetchEvents]);
+    const formattedDate = formatDate(currentDate);
+    fetchEvents(formattedDate);
+  }, [currentDate, fetchEvents, formatDate]);
 
-  // Function to handle date changes
   const handleDateChange = (value: Value) => {
     if (value instanceof Date) {
       setCurrentDate(value);

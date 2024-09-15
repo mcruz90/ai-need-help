@@ -60,16 +60,16 @@ export default function Home() {
       <main className="flex-1 flex flex-col overflow-hidden">
         <header className="bg-white shadow-sm">
           <div className="max-w-7xl mx-auto py-4 px-4 sm:px-2 lg:px-4 flex flex-row">
-          <h1 className="text-2xl font-semibold">hi</h1>
+            <h1 className="text-2xl font-semibold">hi</h1>
           </div>
         </header>
         <div className="flex-1 flex overflow-hidden">
-          <section className="w-2/3 overflow-y-auto p-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="lg:col-span-2">
-              <Calendar />
-            </div>
-            <div className="lg:col-span-2">
+          <section className="w-2/3 overflow-hidden p-4 flex">
+            <div className="w-2/3 pr-2 h-full overflow-hidden">
               <NotionDisplay />
+            </div>
+            <div className="w-1/3 pl-2 h-full overflow-hidden">
+              <Calendar />
             </div>
           </section>
           <aside className="w-1/3 bg-white p-4 border-l overflow-y-auto">

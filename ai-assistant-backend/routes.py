@@ -1,11 +1,11 @@
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from models import ChatRequest
-from utils import handle_exception
-from datetime import date
+from utils import handle_exception, summarize_conversation, extract_key_info
 from calendar_tools import get_google_calendar_events
 from db import store_conversation, get_relevant_conversations, get_recent_conversations
 from router_agent import router_agent
+import logging
 
 # Define the APIRouter for the chat route
 chat_route = APIRouter(prefix="/api/chat")
@@ -13,78 +13,63 @@ chat_route = APIRouter(prefix="/api/chat")
 # Define the APIRouter for the calendar route
 calendar_route = APIRouter(prefix="/api/calendar")
 
-model='command-r-plus-08-2024'
+logger = logging.getLogger(__name__)
 
-preamble=f'''
-        ## Task & Context
-        You are an expert personal assistant with 10 years experience who helps users with their calendar and are also an expert at answering general questions from your internal knowledge.
-        When answering questions related to calendars, you must make sure that a new event does not overlap with any existing event and that the event is added to the calendar.
-        
-        You are very precise and detail-oriented with your responses. For example, you cannot just
-        say "You have an event scheduled for tomorrow", you must state the description, date and time.
-        If you cannot find the event given only the description, you must say so. Do not make up the event or search every single date, as this is not efficient.
-        
-        Do not refuse questions that are not related to scheduling, you have access to your internal knowledge if there are no available tools.
-        
-        Today is  {str(date.today())}.
-        
-        You are very helpful to a very busy user, who needs to balance scheduling work, parental duties, studies, and personal time, and needs a personal tutor.
-        '''
+MAX_CONTEXT_TURNS = 5
+SUMMARY_INTERVAL = 10
 
 @chat_route.post("/")
 async def chat(request: ChatRequest):
-    """
-    Main chat route that receives input from the client, and calls the router agent to triage the request along
-    with the chat history and any additional context to the appropriate agent.
-    The router agent will return the appropriate agent's response, store the conversation turn in the database,
-    and stream the response to the client.
-    
-    params:
-        request: ChatRequest from the client
-    returns:
-        response: StreamingResponse to the client
-    """
     try:
         chat_history = []
+        full_history = []
+        previous_agent_type = None
+        turn_count = 0
 
-        # use model Message to format the current chat turn
         for msg in request.messages[:-1]:
-            role = "User" if msg.role == "User" else "Chatbot"
-            chat_history.append({"role": role, "message": msg.content})
-        
-        # Get the last message (user's input)
+            full_history.append({"role": msg.role, "message": msg.content})
+            if len(chat_history) < MAX_CONTEXT_TURNS:
+                chat_history.append({"role": msg.role, "message": msg.content})
+            if msg.role == "Chatbot" and hasattr(msg, 'agent_type'):
+                previous_agent_type = msg.agent_type
+
         user_message = request.messages[-1].content
+        turn_count = len(full_history) + 1
+
+        if turn_count % SUMMARY_INTERVAL == 0:
+            summary = summarize_conversation(full_history)
+            chat_history = [{"role": "System", "message": f"Conversation summary: {summary}"}] + chat_history[-MAX_CONTEXT_TURNS:]
+
+        key_info = extract_key_info(user_message)
+        if key_info:
+            chat_history.append({"role": "System", "message": f"Key information: {key_info}"})
+
+        router_response = router_agent(user_message, chat_history, previous_agent_type)
         
-        # Retrieve relevant past conversations from the database and add to preamble
-        relevant_conversations = get_relevant_conversations(user_message)
-        relevant_context = "\n\nRelevant past conversations:\n" + "\n".join(relevant_conversations)
-        updated_preamble = preamble + relevant_context
+        if "Could you please provide more context or clarify your question?" in router_response["message"]:
+            # This is a clarification request, so we don't update the chat history yet
+            return StreamingResponse(iter([router_response["message"]]), media_type="text/event-stream")
 
-        # Route the user message, chat history, and preamble to the appropriate agent and get the response
-        router_response = router_agent(user_message, chat_history, updated_preamble)
-                
-        # Append the current chat turn to the chat history
-        chat_history.append(router_response)
+        full_history.append({"role": "User", "content": user_message})
+        full_history.append(router_response)
+        chat_history = full_history[-MAX_CONTEXT_TURNS:]
 
-        # Store the conversation in the database
         store_conversation(user_message, router_response["message"])
 
         print("Final response:")
         print(router_response["message"])
         print("="*50)
 
-        # Define the event stream generator function to stream the response to the client
         async def event_stream():
             if router_response:
-                for chunk in router_response["message"]:
-                    yield chunk
+                yield router_response["message"]
             else:
                 yield "No response generated."
 
-        # Return the StreamingResponse with the event_stream generator
         return StreamingResponse(event_stream(), media_type="text/event-stream")
 
     except Exception as e:
+        logger.error(f"Error in chat route: {str(e)}")
         return handle_exception(e)
 
 @chat_route.get("/history")

@@ -71,13 +71,11 @@ today_date = str(date.today())
 # Preamble
 preamble = '''
 Today is {today_date}.
-    You are an expert who answers the user's question with the most relevant datasource using today's date as a point of reference.
+    You are a general knowledge expert who answers the user's question with the most relevant datasource using today's date as a point of reference.
     You are equipped with an internet search tool and a special vectorstore of information about agents prompt engineering and adversarial attacks.
     If the query covers the topics of agents, prompt engineering or adversarial attacks, use the vectorstore search.
     Otherwise, use the internet search tool.
     
-    
-
     '''
 
 # Prompt
@@ -101,9 +99,9 @@ agent_executor = AgentExecutor(
 #    }
 #)
 
-res = agent_executor.invoke(
-    {
-        "input": "Who won the US Open this year?",
-        "preamble": preamble,
-    }
-)
+#res = agent_executor.invoke(
+#    {
+#        "input": "Who won the US Open this year?",
+#        "preamble": preamble,
+#    }
+#)

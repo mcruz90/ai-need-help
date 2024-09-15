@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, ConfigDict
-from typing import List, Dict, Optional  # Add Optional here
+from typing import List, Optional
 from langchain_core.pydantic_v1 import BaseModel as LangchainBaseModel, Field as LangchainField
 
 

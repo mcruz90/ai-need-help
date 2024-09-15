@@ -1,90 +1,84 @@
 import { useState, useEffect, useCallback } from 'react';
-
-interface NotionPage {
-  id: string;
-  url: string;
-  properties: {
-    title?: {
-      title: Array<{ plain_text: string }>;
-    };
-  };
-}
-
-interface NotionDatabase {
-  id: string;
-  url: string;
-  title: Array<{ plain_text: string }>;
-}
+import { NotionPage, NotionDatabase } from '../components/notion/types';
 
 // Define the useNotion hook to fetch and manage Notion data
 export function useNotion() {
   const [pages, setPages] = useState<NotionPage[]>([]);
   const [databases, setDatabases] = useState<NotionDatabase[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-
-  const fetchPages = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await fetch('/api/notion?type=pages');
-      if (!response.ok) throw new Error('Failed to fetch pages');
-      const data = await response.json();
-      // console.log('Fetched pages:', data);
-      setPages(data);
-    } catch (err) {
-      console.error('Error fetching pages:', err);
-      setError(err instanceof Error ? err : new Error('An error occurred'));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const fetchDatabases = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await fetch('/api/notion?type=databases');
-      if (!response.ok) throw new Error('Failed to fetch databases');
-      const data = await response.json();
-      // console.log('Fetched databases:', data);
-      setDatabases(data);
-    } catch (err) {
-      console.error('Error fetching databases:', err);
-      setError(err instanceof Error ? err : new Error('An error occurred'));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const createPage = useCallback(async (databaseId: string, properties: any) => {
-    setLoading(true);
-    try {
-      const response = await fetch('/api/notion/pages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ databaseId, properties }),
-      });
-      if (!response.ok) throw new Error('Failed to create page');
-      const newPage = await response.json();
-      setPages(prevPages => [...prevPages, newPage]);
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('An error occurred'));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const [expandedPages, setExpandedPages] = useState(new Set<string>());
+  const [pageContents, setPageContents] = useState<{ [key: string]: any }>({});
+  const [years, setYears] = useState<string[]>([]);
+  const [semesters, setSemesters] = useState<string[]>([]);
 
   useEffect(() => {
-    fetchPages();
-    fetchDatabases();
-  }, [fetchPages, fetchDatabases]);
+    fetchNotionData();
+  }, []);
+
+  const fetchNotionData = async () => {
+    try {
+      const response = await fetch('/api/notion');
+      const data = await response.json();
+      console.log("Data received in useNotion:", data);
+      console.log("Pages:", data.pages?.length);
+      console.log("Databases:", data.databases?.length);
+      console.log("Years:", data.years);
+      console.log("Semesters:", data.semesters);
+
+      setPages(data.pages || []); // Provide a default empty array if data.pages is undefined
+      setDatabases(data.databases || []); // Provide a default empty array if data.databases is undefined
+      
+      // Ensure we're setting years and semesters correctly
+      if (Array.isArray(data.years)) {
+        setYears(data.years);
+      }
+      if (Array.isArray(data.semesters)) {
+        setSemesters(data.semesters);
+      }
+      
+      setLoading(false);
+    } catch (err) {
+      console.error('Error in useNotion:', err);
+      setError(err as Error);
+      setLoading(false);
+    }
+  };
+
+  const togglePageExpansion = useCallback(async (pageId: string) => {
+    setExpandedPages(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(pageId)) {
+        newSet.delete(pageId);
+      } else {
+        newSet.add(pageId);
+        if (!pageContents[pageId]) {
+          fetchPageContent(pageId);
+        }
+      }
+      return newSet;
+    });
+  }, [pageContents]);
+
+  const fetchPageContent = async (pageId: string) => {
+    try {
+      const response = await fetch(`/api/notion?pageId=${pageId}`);
+      const data = await response.json();
+      setPageContents(prev => ({ ...prev, [pageId]: data.content }));
+    } catch (err) {
+      console.error('Error fetching page content:', err);
+    }
+  };
 
   return {
     pages,
     databases,
     loading,
     error,
-    fetchPages,
-    fetchDatabases,
-    createPage,
+    expandedPages,
+    pageContents,
+    togglePageExpansion,
+    years,
+    semesters,
   };
 }

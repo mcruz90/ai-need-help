@@ -4,6 +4,12 @@ from calendar_agent import calendar_agent
 
 model = 'command-r-plus-08-2024'
 
+# Define a dictionary of available agents
+AGENTS = {
+    'calendar': calendar_agent,
+    'general': lambda input, history: {"role": "Chatbot", "message": web_search_agent.invoke({"input": input, "preamble": history})["output"]}
+}
+
 preamble="""
         You are an expert router agent that determines which agent can best response to a given query.
         There are two agents: calendar_agent and web_search_agent.
@@ -17,68 +23,79 @@ preamble="""
         Do not refuse questions that are not related to calendars, as the web_search_agent can also answer those questions.
         """
 
-def router_agent(user_input, chat_history, relevant_context) -> dict:
-    """
-    Route the user message to the appropriate agent and get the response as a dictionary with keys 'role' and 'message'.
+def router_agent(user_input, chat_history, previous_agent_type=None) -> dict:
+    # Ensure all elements in chat_history have a 'message' field
+    formatted_history = []
+    for msg in chat_history:
+        if 'content' in msg:
+            formatted_history.append({
+                'role': msg['role'],
+                'message': msg['content']
+            })
+        elif 'message' in msg:
+            formatted_history.append(msg)
 
-    param user_input: the user's input
-    param chat_history: the chat history
-    param relevant_context: the relevant context
+    key_info = next((msg['message'] for msg in formatted_history if msg['role'] == 'System' and msg['message'].startswith('Key information:')), None)
     
-    return: the response from the appropriate agent as a dictionary with keys 'role' and 'message'
+    updated_preamble = preamble + f"""
+    Previous context: {previous_agent_type if previous_agent_type else 'None'}
+    Key information: {key_info if key_info else 'None'}
+    
+    Important: Evaluate the current query objectively. The user may switch topics.
+    Respond ONLY with 'calendar' or 'general'.
     """
-
-    updated_preamble = preamble + relevant_context
 
     # Determine which agent to use
-    response = cohere_client.chat(
-        message=user_input,
+    agent_type_response = cohere_client.chat(
+        message=f"Classify this query: {user_input}",
         model=model,
-        chat_history=chat_history,
+        chat_history=formatted_history,
         preamble=updated_preamble
     )
     
-    agent_type = response.text.strip().lower()
-    print(f"Agent type: {agent_type}")
+    agent_type = agent_type_response.text.strip().lower()
+    print(f"Raw agent type response: {agent_type}")
     
-    if agent_type == 'calendar':
-        return handle_calendar_query(user_input, chat_history, updated_preamble)
-    elif agent_type == 'general':
-        return handle_general_query(user_input, chat_history)
+    # Check if the agent type is directly in our AGENTS dictionary
+    if agent_type in AGENTS:
+        selected_agent = agent_type
     else:
-        raise ValueError(f"Invalid agent type: {agent_type}")
+        # If not, check for partial matches
+        matching_agents = [agent for agent in AGENTS.keys() if agent in agent_type]
+        if matching_agents:
+            selected_agent = matching_agents[0]
+        else:
+            selected_agent = None
 
+    if selected_agent:
+        print(f"Selected agent: {selected_agent}")
+        return handle_query(user_input, chat_history, selected_agent)
+    else:
+        return handle_unclear_agent_type(user_input, chat_history)
 
-def handle_calendar_query(user_input, chat_history, updated_preamble) -> dict:
-    """
-    Calls the calendar agent to handle the received calendar query
+def handle_query(user_input, chat_history, agent_type):
+    print(f"Handling query with {agent_type} agent")
+    formatted_history = [{
+        'role': msg['role'],
+        'message': msg['content'] if 'content' in msg else msg['message']
+    } for msg in chat_history]
+    result = AGENTS[agent_type](user_input, formatted_history)
+    return {"role": "Chatbot", "message": result.text if hasattr(result, 'text') else result["message"]}
 
-    param user_input: the user's input
-    param chat_history: the chat history
-    param updated_preamble: the updated preamble
+def handle_unclear_agent_type(user_input, chat_history):
+    clarification_prompt = f"I'm not sure which agent should handle this query: '{user_input}'. Could you please provide more context or clarify your question?"
     
-    return: the response from the calendar agent as a dictionary with keys 'role' and 'message'
-    """
-    print(f"Performing calendar actions for input message: {user_input}")
-
-    result = calendar_agent(user_input, chat_history, updated_preamble)
-    response = {"role": "Chatbot", "message": result.text}
-
-    return response
-
-def handle_general_query(user_input, chat_history) -> dict:
-    """
-    Handle the general query
-
-    param user_input: the user's input
-    param chat_history: the chat history
+    formatted_history = [{
+        'role': msg['role'],
+        'message': msg['content'] if 'content' in msg else msg['message']
+    } for msg in chat_history]
     
-    return: the response from the web search agent as a dictionary with keys 'role' and 'message'
-    """
-    print(f"Performing web search actions for input message: {user_input}")
-
-    result = web_search_agent.invoke({"input": user_input, "preamble": chat_history})
-    response = {"role": "Chatbot", "message": result["output"]}
-    return response
+    clarification_response = cohere_client.chat(
+        message=clarification_prompt,
+        model=model,
+        chat_history=formatted_history
+    )
+    
+    return {"role": "Chatbot", "message": clarification_response.text}
 
 
