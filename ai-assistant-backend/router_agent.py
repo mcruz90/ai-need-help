@@ -1,29 +1,49 @@
-from config import cohere_client
-from web_search_tools import agent_executor as web_search_agent
+from config import cohere_client, cohere_model as model
+from web_search_tools import web_search_agent
 from calendar_agent import calendar_agent
+from tutor_agent import tutor_agent
+from utils import enhance_output_with_citations, code_block_formatter
 
-model = 'command-r-plus-08-2024'
 
 # Define a dictionary of available agents
 AGENTS = {
-    'calendar': calendar_agent,
-    'general': lambda input, history: {"role": "Chatbot", "message": web_search_agent.invoke({"input": input, "preamble": history})["output"]}
+    'calendar': {
+        "tool": calendar_agent,
+        "description": "Handles queries related to calendars."
+    },
+    'tutor': {
+        "tool": tutor_agent,
+        "description": "Handles queries related to tutoring."
+    },
+    'general': {
+        "tool": web_search_agent,
+        "description": "Handles queries related to general information using web search. "
+    }
 }
 
-preamble="""
-        You are an expert router agent that determines which agent can best response to a given query.
-        There are two agents: calendar_agent and web_search_agent.
-        calendar_agent is an agent that can handle queries related to calendars. You MUST use this agent when the user query is related to calendars.
-        web_search_agent is an agent that can handle queries related to general information, do not use this agent unless the user query is related to general information.
-        
-        Determine if the user query is related to calendars or general information.
-        
-        After receiving the response, it is very important that you only respond with 'calendar' or 'general', as these are the only valid responses that the agents can understand.
+def generate_preamble(agents: dict) -> str:
+    agent_descriptions = "\n".join([f"- {agent}: {info['description']}" for agent, info in agents.items()])
+    return f"""
+    You are an expert router agent that determines which agent can best respond to a given query.
+    The available agents are:
 
-        Do not refuse questions that are not related to calendars, as the web_search_agent can also answer those questions.
-        """
+    {agent_descriptions}
 
-def router_agent(user_input, chat_history, previous_agent_type=None) -> dict:
+    Determine which agent is most suitable for the user query.
+    After receiving the response, it is very important that you only respond with one of the following agent names: {', '.join(agents.keys())}.
+    These are the only valid responses that the agents can understand.
+
+    Do not refuse questions that don't seem to fit any specific agent, as the general agent can handle a wide range of queries.
+
+    When routing to the tutor agent, the preamble is very important as it helps the tutor understand the user's context. The user may also be answering questions
+    from the tutor, so if the agent hasn't explicitly closed the tutoring session, the user may still be receiving help, so you must continue to route to the tutor agent.
+
+    Coding questions should be routed to the general agent unless the user specifies that they need help with learning to code. In that case, route to the tutor agent.
+    """
+
+preamble = generate_preamble(AGENTS)
+
+def router_agent(user_input: str, chat_history: list, previous_agent_type: str = None) -> dict:
     # Ensure all elements in chat_history have a 'message' field
     formatted_history = []
     for msg in chat_history:
@@ -42,7 +62,7 @@ def router_agent(user_input, chat_history, previous_agent_type=None) -> dict:
     Key information: {key_info if key_info else 'None'}
     
     Important: Evaluate the current query objectively. The user may switch topics.
-    Respond ONLY with 'calendar' or 'general'.
+    Respond ONLY with one of the following: {', '.join(AGENTS.keys())}.
     """
 
     # Determine which agent to use
@@ -57,7 +77,7 @@ def router_agent(user_input, chat_history, previous_agent_type=None) -> dict:
     print(f"Raw agent type response: {agent_type}")
     
     # Check if the agent type is directly in our AGENTS dictionary
-    if agent_type in AGENTS:
+    if agent_type in AGENTS.keys():
         selected_agent = agent_type
     else:
         # If not, check for partial matches
@@ -75,12 +95,38 @@ def router_agent(user_input, chat_history, previous_agent_type=None) -> dict:
 
 def handle_query(user_input, chat_history, agent_type):
     print(f"Handling query with {agent_type} agent")
-    formatted_history = [{
-        'role': msg['role'],
-        'message': msg['content'] if 'content' in msg else msg['message']
-    } for msg in chat_history]
-    result = AGENTS[agent_type](user_input, formatted_history)
-    return {"role": "Chatbot", "message": result.text if hasattr(result, 'text') else result["message"]}
+    formatted_history = []
+    for msg in chat_history:
+        if isinstance(msg, dict):
+            formatted_msg = {
+                'role': msg.get('role', ''),
+                'content': msg.get('content', msg.get('message', ''))
+            }
+        else:
+            formatted_msg = {
+                'role': getattr(msg, 'role', ''),
+                'content': getattr(msg, 'content', getattr(msg, 'message', ''))
+            }
+        formatted_history.append(formatted_msg)
+
+    result = AGENTS[agent_type]["tool"].invoke({"input": user_input, "chat_history": formatted_history})
+    
+    if isinstance(result, dict):
+        if "output" in result:
+            output = result["output"]
+        elif "response" in result:
+            output = result["response"]
+        else:
+            output = str(result)
+        
+        if "citations" in result and len(result["citations"]) > 0:
+            enhanced_output = enhance_output_with_citations(output, result["citations"])
+        else:
+            print(f"no citations in output: {output}")
+            enhanced_output = code_block_formatter(output)
+        return {"role": "Chatbot", "message": enhanced_output}
+    else:
+        return {"role": "Chatbot", "message": str(result)}
 
 def handle_unclear_agent_type(user_input, chat_history):
     clarification_prompt = f"I'm not sure which agent should handle this query: '{user_input}'. Could you please provide more context or clarify your question?"

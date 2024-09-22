@@ -7,7 +7,11 @@ An AI assistant webapp using Cohere's LLM models through a Next.js frontend and 
 
 Additionally, it also integrates with Notion for enhanced productivity features, but this is still in the early stages of development.
 
+A tutor agent is also available to assist students with their school work, but this also still in the early stages of development and is not yet reliably routed to without the user explicitly asking for the tutor. The prompt template for the tutor agent is based (with some modification)on the Tutor prompt available on [Microsoft's Prompts for Education repository](https://github.com/microsoft/prompts-for-edu/blob/main/Students/Prompts/Tutor.MD).
+
 This project extends the [Cohere Calendar Agent](https://docs.cohere.com/page/calendar-agent) example and the [Cohere Tools on Langchain](https://docs.cohere.com/docs/tools-on-langchain) example for web search and general purpose interactions with Cohere's Command R+ model.
+
+Please note that as with all AI models, outputs may not be completely accurate or reliable. Cohere's models were chosen for this project for their commitment to [responsible AI development](https://cohere.com/responsibility), but as this area is still undergoing a lot of research, the models may still unintentionally generate content that is not appropriate. 
 
 ## Getting Started
 
@@ -67,7 +71,15 @@ This project extends the [Cohere Calendar Agent](https://docs.cohere.com/page/ca
     - `NEXT_PUBLIC_BACKEND_URL`: URL of your backend server (e.g., `http://localhost:8000`)
     - `NOTION_TOKEN`: Your Notion API key
 
-5. Run the development server:  
+5. Set up Google Calendar API:
+
+    - Go to the [Google Cloud Console](https://console.cloud.google.com/)
+    - Create a new project/use existing project
+    - Enable the Google Calendar API for your project
+    - Create credentials (OAuth 2.0 Client ID) and download the `credentials.json` file
+    - Place the `credentials.json` file in the `ai-assistant-backend` directory
+
+6. Run the development server:  
 
     Frontend:
 

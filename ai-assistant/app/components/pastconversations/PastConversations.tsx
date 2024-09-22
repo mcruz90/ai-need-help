@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { API_URL } from '../utils/api';
+import { API_URL } from '../../utils/api';
 
 interface Conversation {
   id: string;

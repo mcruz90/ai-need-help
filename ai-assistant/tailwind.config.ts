@@ -1,10 +1,12 @@
-import type { Config } from "tailwindcss";
+import type { Config } from 'tailwindcss';
+import typography from '@tailwindcss/typography';
 
 const config: Config = {
   content: [
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
+    './utils/**/*.{js,ts,jsx,tsx}',
   ],
   theme: {
     extend: {
@@ -24,14 +26,16 @@ const config: Config = {
         'secondary': 'var(--secondary)',
         'accent': 'var(--accent)',
         'chat-blue': '#3B8FF3',
+        'chat-blue-dark': '#2A66B1',
         'chat-green': '#34B1AA',
+        'chat-green-dark': '#2A8E87',
         'brand-orange': '#F29F67',
         'brand-orange-dark': '#E08A4F'
        },
        
     },
   },
-  plugins: [],
+  plugins: [typography()],
 };
 
 export default config;

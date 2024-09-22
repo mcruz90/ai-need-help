@@ -1,11 +1,79 @@
 import React, { useState, useEffect, useRef } from 'react';
-import ReactMarkdown from 'react-markdown';
-import CodeBlock from './CodeBlock';
-import PastConversations from './PastConversations';
+import ReactMarkdown, { Components } from 'react-markdown'; 
+import CodeBlock from '../codeblock/CodeBlock';
+import PastConversations from '../pastconversations/PastConversations';
 import './ChatInterface.css';
-import '../markdown-styles.css';
+import '../../markdown-styles.css';
 import { DocumentDuplicateIcon, PaperAirplaneIcon, MicrophoneIcon } from '@heroicons/react/24/outline';
-import { API_URL } from '../utils/api';
+import { API_URL } from '../../utils/api';
+import rehypeRaw from 'rehype-raw';
+import rehypeSanitize from 'rehype-sanitize';
+
+interface MarkdownWithHTMLProps {
+    content: string;
+    components?: Components;
+}
+
+interface CodeComponentProps {
+    node?: any; 
+    inline?: boolean; 
+    className?: string;
+    children?: React.ReactNode;
+    [key: string]: any; // For additional props
+}
+
+// Create a React component to render sanitized HTML with ReactMarkdown
+function MarkdownWithHTML({ content }: MarkdownWithHTMLProps) {
+    return (
+        <ReactMarkdown
+            className="markdown-content prose prose-sm sm:prose lg:prose-lg xl:prose-xl"
+            rehypePlugins={[rehypeRaw, rehypeSanitize]}
+            components={{
+                code({
+                    node,
+                    inline,
+                    className,
+                    children,
+                    ...props
+                }: CodeComponentProps) { 
+                    const match = /language-(\w+)/.exec(className || '');
+                    const language = match ? match[1] : '';
+                    const codeString = String(children).replace(/\n$/, '');
+                    
+                    if (!inline) {
+                        return (
+                            <CodeBlock
+                                value={codeString}
+                                language={language || 'text'}
+                            />
+                        );
+                    }
+                    
+                    return (
+                        <code className={`bg-gray-700 text-white px-1 py-0.5 rounded ${className}`} {...props}>
+                            {children}
+                        </code>
+                    );
+                },
+                a({ node, ...props }) {
+                    return (
+                        <a {...props} target="_blank" rel="noopener noreferrer">
+                            {props.children}
+                        </a>
+                    );
+                },
+                sup({ node, ...props }) {
+                    return <sup className="inline">{props.children}</sup>;
+                },
+                blockquote({ node, ...props }) {
+                    return <blockquote className="border-l-4 border-gray-300 pl-4 italic" {...props} />;
+                },
+            }}
+        >
+            {content}
+        </ReactMarkdown>
+    );
+}
 
 // Define the ChatInterfaceProps interface 
 interface ChatInterfaceProps {
@@ -19,7 +87,15 @@ interface ChatInterfaceProps {
 }
 
 // Define the ChatInterface component
-export default function ChatInterface({ messages, onNewMessage, interimTranscript, inputMessage, setInputMessage, isListening, toggleListening }: ChatInterfaceProps) {
+export default function ChatInterface({
+    messages,
+    onNewMessage,
+    interimTranscript,
+    inputMessage,
+    setInputMessage,
+    isListening,
+    toggleListening
+}: ChatInterfaceProps) {
     const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const [showPastConversations, setShowPastConversations] = useState(false);
@@ -97,26 +173,7 @@ export default function ChatInterface({ messages, onNewMessage, interimTranscrip
                                             </div>
                                         ) : msg.text ? (
                                             <>
-                                                <ReactMarkdown
-                                                    className="markdown-content"
-                                                    components={{
-                                                        code({ node, className, children, ...props }) {
-                                                            const match = /language-(\w+)/.exec(className || '');
-                                                            return match ? (
-                                                                <CodeBlock
-                                                                    value={String(children).replace(/\n$/, '')}
-                                                                    language={match[1]}
-                                                                />
-                                                            ) : (
-                                                                <code className={className} {...props}>
-                                                                    {children}
-                                                                </code>
-                                                            );
-                                                        }
-                                                    }}
-                                                >
-                                                    {msg.text}
-                                                </ReactMarkdown>
+                                                <MarkdownWithHTML content={msg.text} />
                                                 <button
                                                     onClick={() => copyToClipboard(msg.text, index)}
                                                     className="copy-button"

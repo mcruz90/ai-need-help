@@ -1,38 +1,43 @@
-.markdown-content h1 {
-  font-size: 1.5em;
-  font-weight: bold;
-  margin-top: 1em;
-  margin-bottom: 0.5em;
+.markdown-content {
+  color: white;
+  font-size: 0.875rem;
+
+  h1 {
+    font-size: 1.25rem;
+  }
+
+  h2 {
+    font-size: 1.125rem;
+  }
+
+  h3 {
+    font-size: 1rem;
+  }
+
+  p, li {
+  font-size: 1rem; /* text-sm */
 }
 
-.markdown-content h2 {
-  font-size: 1.25em;
-  font-weight: bold;
-  margin-top: 1em;
-  margin-bottom: 0.5em;
+pre {
+  white-space: pre-wrap; /* Preserves line breaks */
+  word-wrap: break-word; /* Allows long lines to break */
+  background-color: #f5f5f5; /* Optional: Background color for code blocks */
+  padding: 1em; /* Optional: Padding for better readability */
+  border-radius: 5px; /* Optional: Rounded corners */
+  overflow-x: auto; /* Adds horizontal scrollbar if needed */
 }
 
-.markdown-content p {
-  margin-bottom: 0.5em;
-}
-
-.markdown-content ul, .markdown-content ol {
-  margin-left: 1.5em;
-  margin-bottom: 0.5em;
-}
-
-.markdown-content li {
-  margin-bottom: 0.25em;
-}
-
-.markdown-content code {
-  background-color: #f0f0f0;
-  padding: 0.2em 0.4em;
-  border-radius: 3px;
+code {
   font-family: 'Courier New', Courier, monospace;
 }
 
-.markdown-content {
-  position: relative;
-  padding: 0.5rem;
+  /* Ensure superscripts are styled correctly */
+  sup {
+    @apply text-sm;
+  }
+
+  /* Customize blockquotes if not handled in ReactMarkdown component */
+  blockquote {
+    @apply border-l-4 border-gray-300 pl-4 italic;
+  }
 }

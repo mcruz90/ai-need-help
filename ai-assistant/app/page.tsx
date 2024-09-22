@@ -1,14 +1,14 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import ChatInterface from './components/ChatInterface';
+import ChatInterface from './components/chat/ChatInterface';
 import { NotionDisplay } from './components/notion/notionDisplay';
 import Calendar from './components/calendar/Calendar';
 import Sidebar from './components/Sidebar';
 import { useChat } from './hooks/useChat';
 import { setupVoiceRecognition } from './utils/voiceRecognition';
-import './components/ChatInterface.css';
-import './components/CodeBlock.css';
+import './components/chat/ChatInterface.css';
+import './components/codeblock/CodeBlock.css';
 
 // This is the main page of the app; components are imported from other files and used to build the UI
 export default function Home() {

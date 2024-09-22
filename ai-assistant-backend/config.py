@@ -11,6 +11,9 @@ load_dotenv()
 # CORS
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
 
+# LLM model
+cohere_model='command-r-plus-08-2024'
+
 # Initialize Cohere client
 cohere_client = cohere.Client(os.getenv("COHERE_API_KEY"))
 

@@ -59,6 +59,20 @@
   padding-bottom: 2rem; 
 }
 
+.message-ai sup {
+  vertical-align: super;
+  font-size: smaller;
+}
+
+.message-ai a {
+  @apply text-chat-green-dark;
+  text-decoration: none;
+}
+
+.message-ai a:hover {
+  text-decoration: underline;
+}
+
 .justify-end {
   justify-content: flex-end;
 }
