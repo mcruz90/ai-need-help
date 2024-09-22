@@ -90,11 +90,13 @@ export default function Home() {
           </div>
         </header>
         <div className="flex-1 flex overflow-hidden">
-          <section className="flex-1 overflow-hidden p-4">
+          <section className={`overflow-hidden p-4 transition-all duration-300 ${
+            isAsideOpen ? 'w-[50%]' : 'w-full'
+          }`}>
             <NotionDisplay />
           </section>
           <aside className={`bg-white border-l overflow-hidden transition-all duration-300 ${
-            isAsideOpen ? 'w-1/3' : 'w-0'
+            isAsideOpen ? 'w-[50%]' : 'w-0'
           }`}>
             {isAsideOpen && (
               <div className="h-full flex flex-col">

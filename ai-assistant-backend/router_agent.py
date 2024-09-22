@@ -100,16 +100,22 @@ def handle_query(user_input, chat_history, agent_type):
         if isinstance(msg, dict):
             formatted_msg = {
                 'role': msg.get('role', ''),
-                'content': msg.get('content', msg.get('message', ''))
+                'message': msg.get('message', msg.get('content', ''))
             }
         else:
             formatted_msg = {
                 'role': getattr(msg, 'role', ''),
-                'content': getattr(msg, 'content', getattr(msg, 'message', ''))
+                'message': getattr(msg, 'message', getattr(msg, 'content', ''))
             }
         formatted_history.append(formatted_msg)
 
-    result = AGENTS[agent_type]["tool"].invoke({"input": user_input, "chat_history": formatted_history})
+    if agent_type == 'calendar':
+        # Handle calendar agent separately
+        result = AGENTS[agent_type]["tool"](user_input, formatted_history)
+        return {"role": "Chatbot", "message": result["response"]}
+    else:
+        # Handle other agents as before
+        result = AGENTS[agent_type]["tool"].invoke({"input": user_input, "chat_history": formatted_history})
     
     if isinstance(result, dict):
         if "output" in result:
