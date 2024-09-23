@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { NotionPage, NotionDatabase } from '../components/notion/types';
 
 // Define the useNotion hook to fetch and manage Notion data
@@ -12,8 +12,14 @@ export function useNotion() {
   const [years, setYears] = useState<string[]>([]);
   const [semesters, setSemesters] = useState<string[]>([]);
 
+  // Ref to track if data has been fetched
+  const hasFetched = useRef(false);
+
   useEffect(() => {
-    fetchNotionData();
+    if (!hasFetched.current) {
+      fetchNotionData();
+      hasFetched.current = true;
+    }
   }, []);
 
   const fetchNotionData = async () => {

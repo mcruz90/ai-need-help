@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNotion } from '../../hooks/useNotion';
 import { NotionPage, NotionDatabase } from './types';
 import { getPageTitle } from './utils';
@@ -21,9 +21,9 @@ export function NotionDisplay() {
     semesters 
   } = useNotion();
 
-  console.log("Pages in NotionDisplay:", pages);
-  console.log("Years:", years);
-  console.log("Semesters:", semesters);
+  //console.log("Pages in NotionDisplay:", pages);
+  //console.log("Years:", years);
+  //console.log("Semesters:", semesters);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [yearFilter, setYearFilter] = useState('');
@@ -66,7 +66,7 @@ export function NotionDisplay() {
     return filteredPages.slice(startIndex, startIndex + ITEMS_PER_PAGE);
   }, [filteredPages, currentPage]);
 
-  const totalPages = Math.ceil(filteredPages.length / ITEMS_PER_PAGE);
+  const totalPages = useMemo(() => Math.ceil(filteredPages.length / ITEMS_PER_PAGE), [filteredPages]);
 
   const filteredDatabases = useMemo(() => {
     return databases.filter((db: NotionDatabase) => 
@@ -74,7 +74,7 @@ export function NotionDisplay() {
     );
   }, [databases, searchTerm]);
 
-  const generateExportContent = () => {
+  const generateExportContent = useCallback(() => {
     let content = "Notion Pages and Databases\n\n";
     content += "Pages:\n";
     filteredPages.forEach((page: NotionPage) => {
@@ -133,19 +133,20 @@ export function NotionDisplay() {
       content += '\n';
     });
     return content;
-  };
+  }, [filteredPages, filteredDatabases]);
 
-  const handleExport = () => {
+  const handleExport = useCallback(() => {
     const content = generateExportContent();
     const blob = new Blob([content], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
     link.download = 'notion_export.txt';
+    document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  };
+  }, [generateExportContent]);
 
   if (loading) return <div className="h-full flex items-center justify-center">Loading Notion data...</div>;
   if (error) return <div className="h-full flex items-center justify-center">Error: {error.message}</div>;
