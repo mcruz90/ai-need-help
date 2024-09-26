@@ -3,8 +3,6 @@ from web_search_tools import web_search_agent
 from calendar_agent import calendar_agent
 from tutor_agent import tutor_agent
 from utils import enhance_output_with_citations, code_block_formatter, extract_key_info
-import asyncio
-from typing import AsyncGenerator
 
 import re
 import logging
@@ -26,7 +24,7 @@ AGENTS = {
     },
     'code': {
         "tool": web_search_agent,
-        "description": "Handles coding questions, providing code examples, debugging."
+        "description": "Handles coding questions, providing code examples, debugging. The code agent directly answers the user's question and does not need to any web searches."
     }
 }
 
@@ -96,99 +94,121 @@ def parse_agent_response(response: str):
 
     return agent_type, confidence
 
-def router_agent(user_input: str, chat_history: list, previous_agent_type: str = None, key_info: str = None):
-    try:
-        logger.info(f"Router agent called with input: {user_input}")
+def router_agent(user_input: str, chat_history: list, previous_agent_type: str = None, key_info: str = None) -> dict:
+    logger.info(f"Router agent called with input: {user_input}")
     
-        formatted_history = [
+    formatted_history = [
         {"role": msg['role'], "message": msg['message'] if 'message' in msg else msg['content']}
-        for msg in chat_history
+        for msg in chat_history[-5:]  # Only consider the last 5 messages for context
     ]
 
-        context_info = extract_context_info(formatted_history, user_input)
+    context_info = extract_context_info(formatted_history, user_input)
+    
+    # Include key_info in the context if it's provided
+    if key_info:
+        context_info = f"{context_info} | Key information: {key_info}" if context_info else f"Key information: {key_info}"
+    
+    updated_preamble = generate_preamble(AGENTS) + f"""
+    Previous agent: {previous_agent_type if previous_agent_type else 'None'}
+    Context: {context_info if context_info else 'No additional context'}
+
+    Important: Consider the current query independently from previous interactions.
+    The previous agent type is provided for context, but it should not heavily influence your decision for the current query.
+
+    Analyze the following query and determine the most suitable agent:
+    "{user_input}"
+
+    Respond with the agent name followed by a colon and your reasoning.
+    For example: "calendar: This query is about scheduling an appointment."
+    """
+
+    agent_type_response = cohere_client.chat(
+        message="Route this query to the most appropriate agent",
+        model=model,
+        chat_history=formatted_history,
+        preamble=updated_preamble
+    )
+    
+    agent_type, confidence = parse_agent_response(agent_type_response.text)
+
+    logger.info(f"Raw agent type response: {agent_type_response.text}")
+    logger.info(f"Parsed agent type: {agent_type}, Confidence: {confidence}")
+    
+    if agent_type in AGENTS.keys():
+        selected_agent = agent_type
+    else:
+        matching_agents = [agent for agent in AGENTS.keys() if agent in agent_type]
+        selected_agent = matching_agents[0] if matching_agents else 'general'
+        confidence = max(confidence - 0.1, 0.3) if selected_agent == 'general' else confidence
+
+    confidence_threshold = 0.7  # You can adjust this threshold
+
+    if selected_agent and confidence >= confidence_threshold:
+        logger.debug(f"Selected agent: {selected_agent}, Confidence: {confidence}")
         
-        if key_info:
-            context_info = f"{context_info} | Key information: {key_info}" if context_info else f"Key information: {key_info}"
+        return handle_query(user_input, chat_history, selected_agent, context_info, confidence)
+    else:
+        logger.debug(f"Unclear agent type, confidence: {confidence}")
         
-        updated_preamble = generate_preamble(AGENTS) + f"""
-        Previous agent: {previous_agent_type if previous_agent_type else 'None'}
-        Context: {context_info if context_info else 'No additional context'}
+        return handle_unclear_agent_type(user_input, chat_history, confidence)
 
-        Analyze the following query and determine the most suitable agent:
-        "{user_input}"
 
-        Respond with the agent name followed by a colon and your reasoning.
-        For example: "calendar: This query is about scheduling an appointment."
-        """
 
-        full_response = ""
-        for event in cohere_client.chat_stream(
-            message=user_input,
-            model=model,
-            chat_history=formatted_history,
-            preamble=updated_preamble,
-            prompt_truncation="auto"
-        ):
-            if event.event_type == "text-generation":
-                full_response += event.text
-            elif event.event_type == "stream-end":
-                # Process the full response after streaming is complete
-                agent_type, confidence = parse_agent_response(full_response)
-
-                logger.info(f"Raw agent type response: {full_response}")
-                logger.info(f"Parsed agent type: {agent_type}, Confidence: {confidence}")
-                
-                if agent_type in AGENTS.keys():
-                    selected_agent = agent_type
-                else:
-                    matching_agents = [agent for agent in AGENTS.keys() if agent in agent_type]
-                    selected_agent = matching_agents[0] if matching_agents else 'general'
-                    confidence = max(confidence - 0.1, 0.3) if selected_agent == 'general' else confidence
-
-                confidence_threshold = 0.7 
-
-                if selected_agent and confidence >= confidence_threshold:
-                    logger.info(f"Selected agent: {selected_agent}, Confidence: {confidence}")
-                    yield from handle_query(user_input, chat_history, selected_agent, key_info, confidence)
-                else:
-                    logger.info(f"Unclear agent type, confidence: {confidence}")
-                    yield from handle_unclear_agent_type(user_input, chat_history, confidence)
-
-    except Exception as e:
-        logger.error(f"Error in router_agent: {str(e)}", exc_info=True)
-        yield {"role": "Chatbot", "message": f"An error occurred while processing your query: {str(e)}", "agent_type": "router"}
-
-def handle_query(user_input: str, chat_history: list, agent_type: str, context_info: str = None, confidence: float = None):
+def handle_query(user_input, chat_history, agent_type, context_info=None, confidence=None):
     try:
-        logger.info(f"Handling query with {agent_type} agent")
-        formatted_history = [
-            {
-                'role': msg.get('role', ''),
-                'message': msg.get('message', msg.get('content', ''))
-            }
-            for msg in chat_history
-        ]
+        logger.debug(f"Handling query with {agent_type} agent")
+        print(f"Handling query with {agent_type} agent")
+        formatted_history = []
+        for msg in chat_history:
+            if isinstance(msg, dict):
+                formatted_msg = {
+                    'role': msg.get('role', ''),
+                    'message': msg.get('message', msg.get('content', ''))
+                }
+            else:
+                formatted_msg = {
+                    'role': getattr(msg, 'role', ''),
+                    'message': getattr(msg, 'message', getattr(msg, 'content', ''))
+                }
+            formatted_history.append(formatted_msg)
 
         if agent_type == 'calendar':
             # Handle calendar agent separately
             result = AGENTS[agent_type]["tool"](user_input, formatted_history)
-            enhanced_output = enhance_output_with_citations(result["response"], result.get("citations", []))
-            yield {"role": "Chatbot", "message": enhanced_output, "agent_type": agent_type}
+            return {"role": "Chatbot", "message": result["response"]}
+        elif agent_type == 'general':
+            # Handle general agent with additional context
+            result = AGENTS[agent_type]["tool"].invoke({
+                "input": user_input, 
+                "chat_history": formatted_history,
+                "router_context": context_info,
+                "router_confidence": confidence
+            })
         else:
-            # Handle other agents
-            for chunk in AGENTS[agent_type]["tool"].stream({"input": user_input, "chat_history": formatted_history}):
-                if isinstance(chunk, dict):
-                    message = chunk.get('output') or chunk.get('content') or str(chunk)
-                    logger.info(f"Chunk getting content Message: {message}")
-                else:
-                    message = str(chunk)
-                
-                logger.info(f"Yielded Message: {message}")
-                yield {"role": "Chatbot", "message": message, "agent_type": agent_type}
+            # Handle other agents as before
+            result = AGENTS[agent_type]["tool"].invoke({"input": user_input, "chat_history": formatted_history})
+        
+            logger.debug(f"Raw result from {agent_type} agent: {result}")
 
+        if isinstance(result, dict):
+            if "output" in result:
+                output = result["output"]
+            elif "response" in result:
+                output = result["response"]
+            else:
+                output = str(result)
+            
+            if "citations" in result and len(result["citations"]) > 0:
+                enhanced_output = enhance_output_with_citations(output, result["citations"])
+            else:
+                print(f"no citations in output: {output}")
+                enhanced_output = code_block_formatter(output)
+            return {"role": "Chatbot", "message": enhanced_output}
+        else:
+            return {"role": "Chatbot", "message": str(result)}
     except Exception as e:
         logger.error(f"Error in handle_query: {str(e)}", exc_info=True)
-        yield {"role": "Chatbot", "message": f"An error occurred while processing your query: {str(e)}", "agent_type": agent_type}
+        return {"role": "Chatbot", "message": f"An error occurred while processing your query: {str(e)}"}
 
 def handle_unclear_agent_type(user_input, chat_history, confidence):
     clarification_prompt = f"I'm not entirely sure which agent should handle this query (confidence: {confidence:.2f}): '{user_input}'. Could you please provide more context or clarify your question?"
@@ -198,11 +218,12 @@ def handle_unclear_agent_type(user_input, chat_history, confidence):
         'message': msg['content'] if 'content' in msg else msg['message']
     } for msg in chat_history]
     
-    for chunk in cohere_client.chat_stream(
+    clarification_response = cohere_client.chat(
         message=clarification_prompt,
         model=model,
         chat_history=formatted_history
-    ):
-        yield {"role": "Chatbot", "message": chunk.text, "agent_type": "router"}
+    )
+    
+    return {"role": "Chatbot", "message": clarification_response.text}
 
 

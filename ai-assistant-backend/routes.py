@@ -6,7 +6,6 @@ from calendar_tools import get_google_calendar_events
 from db import store_conversation, get_relevant_conversations, get_recent_conversations
 from router_agent import router_agent
 import logging
-import json
 
 # Define the APIRouter for the chat route
 chat_route = APIRouter(prefix="/api/chat")
@@ -26,49 +25,37 @@ async def chat(request: ChatRequest):
         full_history = []
         previous_agent_type = None
         turn_count = 0
-
         for msg in request.messages[:-1]:
             full_history.append({"role": msg.role, "message": msg.content})
             if len(chat_history) < MAX_CONTEXT_TURNS:
                 chat_history.append({"role": msg.role, "message": msg.content})
             if msg.role == "Chatbot" and hasattr(msg, 'agent_type'):
                 previous_agent_type = msg.agent_type
-
         user_message = request.messages[-1].content
         turn_count = len(full_history) + 1
-
         if turn_count % SUMMARY_INTERVAL == 0:
             summary = summarize_conversation(full_history)
             chat_history = [{"role": "System", "message": f"Conversation summary: {summary}"}] + chat_history[-MAX_CONTEXT_TURNS:]
-
         key_info = extract_key_info(user_message)
-        if key_info:
-            chat_history.append({"role": "System", "message": f"Key information: {key_info}"})
+
+        router_response = router_agent(user_message, chat_history, previous_agent_type, key_info)
+
+        logger.debug(f"Router response: {router_response}")  # Add this line
+
+        full_history.append({"role": "User", "content": user_message})
+        full_history.append(router_response)
+        chat_history = full_history[-MAX_CONTEXT_TURNS:]
+
+        logger.debug(f"Storing conversation: user_message={user_message}, response={router_response['message']}")
+        store_conversation(user_message, router_response["message"])
+
+        logger.info(f"router_response: {router_response}")
 
         async def event_stream():
-            full_response = ""
-            agent_type = "unknown"
-            
-            for chunk in router_agent(user_message, chat_history, previous_agent_type, key_info):
-                if chunk.get('role') == 'Chatbot':
-                    full_response += chunk.get('message', '')
-                    logger.info(f"Full response: {full_response}")
-                    agent_type = chunk.get('agent_type', agent_type)
-                    yield f"data: {json.dumps({'role': 'Chatbot', 'message': chunk.get('message', ''), 'agent_type': agent_type})}\n\n"
-
-            # Update conversation history after full response is received
-            full_history.append({"role": "User", "content": user_message})
-            full_history.append({"role": "Chatbot", "message": full_response, "agent_type": agent_type})
-            
-            # Update chat_history for next turn
-            updated_chat_history = full_history[-MAX_CONTEXT_TURNS:]
-
-            store_conversation(user_message, full_response)
-            
-            logger.debug(f"Final response: {full_response}")
-
-            yield f"data: {json.dumps({'updated_history': updated_chat_history})}\n\n"
-            yield "data: [DONE]\n\n"
+            if router_response:
+                yield router_response["message"]
+            else:
+                yield "No response generated."
 
         return StreamingResponse(event_stream(), media_type="text/event-stream")
 
