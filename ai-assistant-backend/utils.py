@@ -29,7 +29,6 @@ def extract_key_info(message):
             extracted.append(word)
     return ", ".join(extracted) if extracted else None
 
-# utils.py
 def code_block_formatter(raw_output: str) -> str:
     """
     Processes the raw output from the model and enhances it for frontend rendering.
@@ -56,11 +55,11 @@ def code_block_formatter(raw_output: str) -> str:
 
 def enhance_output_with_citations(output: str, citations: list) -> str:
     """
-    Enhances the output string with superscript citations that link directly to the URLs.
+    Enhances the output string with inline citations that link directly to the URLs.
     
     :param output: The original output string from the model
     :param citations: List of citation objects
-    :return: Enhanced output string with superscript citations linking to URLs
+    :return: Enhanced output string with inline citations linking to URLs
     """
     url_dict = {}
     current_number = 1
@@ -77,9 +76,9 @@ def enhance_output_with_citations(output: str, citations: list) -> str:
                 url_dict[url] = current_number
                 current_number += 1
             num = url_dict[url]
-            citation_links.append(f'<a href="{url}" class="citation-link" target="_blank" rel="noopener noreferrer">[{num}]</a>')
+            citation_links.append(f'<a href="{url}" class="citation-link" target="_blank" rel="noopener noreferrer"><span class="citation">{num}</span></a>')
         
-        citation_marker = f"<sup>{' '.join(sorted(citation_links))}</sup>"
+        citation_marker = f" {''.join(sorted(citation_links))}"
         output = output[:citation.end] + citation_marker + output[citation.end:]
     
     # Clean up and format the output
@@ -97,13 +96,10 @@ def enhance_output_with_citations(output: str, citations: list) -> str:
         formatted_lines.append(line)
         
         # Add newline after headings with citations
-        if line.startswith('#') and line.endswith('</sup>'):
+        if line.startswith('#') and '<span class="citation">' in line:
             formatted_lines.append('')
     
     # Join the formatted lines
     formatted_output = '\n'.join(formatted_lines).strip()
-    
-    # Remove <br> tags after </sup>
-    formatted_output = formatted_output.replace('</sup><br>', '</sup>')
     
     return formatted_output

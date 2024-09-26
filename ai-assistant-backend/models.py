@@ -1,6 +1,5 @@
 from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional
-from langchain_core.pydantic_v1 import BaseModel as LangchainBaseModel, Field as LangchainField
 
 
 # Common configuration for all models
@@ -23,5 +22,6 @@ class Event(BaseModel):
     location: str = Field(description="Venue or location of the event, or 'No location provided' if not specified")
     description: str = Field(description="Brief description of the event")
 
-class TavilySearchInput(LangchainBaseModel):
-    query: str = LangchainField(description="Query to search the internet with")
+class TavilySearchInput(BaseModel):
+    model_config = common_config
+    query: str = Field(description="Query to search the internet with")

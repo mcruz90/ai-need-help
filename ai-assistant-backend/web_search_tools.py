@@ -1,4 +1,4 @@
-from config import tavily_client, cohere_model as model
+from config import cohere_model as model
 from config import cohere_embeddings as embd
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import WebBaseLoader
@@ -6,16 +6,18 @@ from langchain_community.vectorstores import FAISS
 from langchain.tools.retriever import create_retriever_tool
 from langchain_cohere.chat_models import ChatCohere
 from models import TavilySearchInput
-from datetime import date
 from langchain.agents import AgentExecutor, Tool
 from langchain_cohere.react_multi_hop.agent import create_cohere_react_agent
 from langchain_core.prompts import ChatPromptTemplate
 from langchain.memory import ConversationBufferMemory
+from config import tavily_search
+
 
 # Internet_search tool using Tavily
-internet_search = tavily_client
+
+internet_search = tavily_search
 internet_search.name = "internet_search"
-internet_search.description = "Returns a list of relevant document snippets for a textual query retrieved from the internet."
+internet_search.description = "Useful for answering questions about current events, general knowledge, and timeless information, adaptively emphasizing recency when appropriate."
 internet_search.args_schema = TavilySearchInput
 
 ######## VECTOR_SEARCH TOOL ########
@@ -55,18 +57,31 @@ vectorstore_search = create_retriever_tool(
 
 chat = ChatCohere(model=model, temperature=0.3)
 
-today_date = str(date.today())
-
 # Preamble
-preamble = f'''
-Today is {today_date}.
-You are a general knowledge expert who answers the user's question with the most relevant datasource using today's date as a point of reference.
-You are equipped with an internet search tool and a special vectorstore of information about agents prompt engineering and adversarial attacks.
-If the query covers the topics of agents, prompt engineering or adversarial attacks, use the vectorstore search.
-Otherwise, use the internet search tool.
+preamble = """
+    You are equipped with an internet search tool and a special vectorstore of information about agents prompt engineering and adversarial attacks.
+    If the query covers the topics of agents, prompt engineering or adversarial attacks, use the vectorstore search.
+    Otherwise, use the internet search tool.
+    If the user is asking for code, do not call on any of the tools, you must directly answer the user's question. The available tools are not equipped to answer code-related questions.
 
-If the user is asking for code, do not call on any of the tools, you must directly answer the user's question. The available tools are not equipped to answer code-related questions.
-'''
+    Instructions for queries that require tool use:
+        1. Analyze the provided sources and determine their reliability.
+        2. Synthesize information from multiple sources when possible.
+        3. If sources contradict each other, mention this discrepancy in your response.
+        4. Clearly indicate which parts of your response are factual (based on sources) and which are your own analysis or uncertainty.
+        5. If you're unsure about any information, express your uncertainty clearly.
+        6. If the query cannot be confidently answered with the given sources, say so.
+        7. Time sensitive information is crucial, so prioritize recent information over older sources for queries about current events.
+        
+        Your response should be informative, balanced, and transparent about its sources and any uncertainties.
+
+    Instructions for coding queries:
+        1. You must only use the directly_answer tool for code-related questions unless the user wants background information that requires a response that must be fact-checked.
+        2. Make sure to add detailed comments to the code to explain the code.
+    
+    Additional context from the router: {{router_context}}
+    Router's confidence in selecting this agent: {{router_confidence}}
+"""
 
 # Prompt
 prompt = ChatPromptTemplate.from_messages([
@@ -99,12 +114,20 @@ agent = create_cohere_react_agent(
 memory = ConversationBufferMemory(memory_key="chat_history", input_key="input", output_key="output", return_messages=True)
 
 # Create the agent executor
-web_search_agent = AgentExecutor(
+web_search_agent = AgentExecutor.from_agent_and_tools(
     agent=agent,
     tools=tools,
     memory=memory,
     verbose=True
 )
+
+def web_search_agent_with_context(user_input, chat_history, router_context, router_confidence):
+    return web_search_agent.run(
+        input=user_input,
+        chat_history=chat_history,
+        router_context=router_context,
+        router_confidence=router_confidence
+    )
 
 #if __name__ == "__main__":
 #    while True:

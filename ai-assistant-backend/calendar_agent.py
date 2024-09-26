@@ -1,10 +1,8 @@
-from config import cohere_client, model
+from config import cohere_client, cohere_model as model
 from tools_utils import tools, functions_map
 from datetime import date
 from functools import lru_cache
 from datetime import datetime, timedelta
-
-model='command-r-plus-08-2024'
 
 preamble=f"""
         ## Task & Context
