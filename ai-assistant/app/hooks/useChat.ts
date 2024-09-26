@@ -6,7 +6,6 @@ export function useChat() {
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const isProcessingRef = useRef(false);
 
-  // Define the handleNewMessage function where the chatbot is triggered
   const handleNewMessage = useCallback(async (message: string) => {
     if (isProcessingRef.current) return;
     isProcessingRef.current = true;
@@ -14,11 +13,16 @@ export function useChat() {
     setMessages(prev => [...prev, { text: message, isUser: true }, { text: '', isUser: false, isLoading: true }]);
 
     try {
-      const reader = await sendChatMessage(message, chatHistory);
-      const fullResponse = await streamResponse(reader, (text) => {
+      const response = await sendChatMessage(message, chatHistory);
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('No reader available');
+
+      let fullResponse = '';
+      await streamResponse(reader, (text) => {
+        fullResponse += text;
         setMessages(prev => {
           const newMessages = [...prev];
-          newMessages[newMessages.length - 1] = { text, isUser: false, isLoading: false };
+          newMessages[newMessages.length - 1] = { text: fullResponse, isUser: false, isLoading: false };
           return newMessages;
         });
       });

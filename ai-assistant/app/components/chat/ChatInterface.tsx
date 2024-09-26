@@ -135,6 +135,38 @@ export default function ChatInterface({
         }
     };
 
+    // Add this new component
+    const Message: React.FC<{ msg: { text: string; isUser: boolean; isLoading?: boolean }; index: number; copyToClipboard: (text: string, index: number) => void; copiedIndex: number | null }> = React.memo(({ msg, index, copyToClipboard, copiedIndex }) => (
+        <div className={`message-wrapper ${msg.isUser ? 'justify-end' : 'justify-start'}`}>
+            <div className={`message ${msg.isUser ? 'message-user' : 'message-ai'}`}>
+                {msg.isUser ? (
+                    <p>{msg.text}</p>
+                ) : msg.isLoading ? (
+                    <div className="flex items-center">
+                        <svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        Thinking...
+                    </div>
+                ) : msg.text ? (
+                    <>
+                        <MarkdownWithHTML content={msg.text} />
+                        <button
+                            onClick={() => copyToClipboard(msg.text, index)}
+                            className="copy-button"
+                            aria-label="Copy model response"
+                        >
+                            <DocumentDuplicateIcon className={`h-5 w-5 ${copiedIndex === index ? 'text-green-500' : 'text-white'}`} />
+                        </button>
+                    </>
+                ) : null}
+            </div>
+        </div>
+    ));
+
+    Message.displayName = 'Message';
+
     return (
         <div className="chat-container">
             <div className="flex flex-row mb-4 justify-between items-center">
@@ -159,32 +191,13 @@ export default function ChatInterface({
                     <>
                         <div className="chat-messages">
                             {messages.map((msg, index) => (
-                                <div key={index} className={`message-wrapper ${msg.isUser ? 'justify-end' : 'justify-start'}`}>
-                                    <div className={`message ${msg.isUser ? 'message-user' : 'message-ai'}`}>
-                                        {msg.isUser ? (
-                                            <p>{msg.text}</p>
-                                        ) : msg.isLoading ? (
-                                            <div className="flex items-center">
-                                                <svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
-                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                                                </svg>
-                                                Thinking...
-                                            </div>
-                                        ) : msg.text ? (
-                                            <>
-                                                <MarkdownWithHTML content={msg.text} />
-                                                <button
-                                                    onClick={() => copyToClipboard(msg.text, index)}
-                                                    className="copy-button"
-                                                    aria-label="Copy model response"
-                                                >
-                                                    <DocumentDuplicateIcon className={`h-5 w-5 ${copiedIndex === index ? 'text-green-500' : 'text-white'}`} />
-                                                </button>
-                                            </>
-                                        ) : null}
-                                    </div>
-                                </div>
+                                <Message
+                                    key={index}
+                                    msg={msg}
+                                    index={index}
+                                    copyToClipboard={copyToClipboard}
+                                    copiedIndex={copiedIndex}
+                                />
                             ))}
                             {interimTranscript && (
                                 <div className="message-wrapper justify-end">

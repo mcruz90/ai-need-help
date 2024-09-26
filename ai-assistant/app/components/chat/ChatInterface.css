@@ -65,12 +65,44 @@
 }
 
 .message-ai a {
-  @apply text-chat-green-dark;
   text-decoration: none;
+  background-color: theme('colors.chat-green-dark');
+  vertical-align: super;
+  color: white;
+  font-size: 0.6em;
+  border-radius: 0.8em;
+  -moz-border-radius: 0.8em;
+  -webkit-border-radius: 0.8em;
+  display: inline-block;
+  line-height: 1.6em;
+  margin-right: 5px;
+  text-align: center;
+  width: 1.6em; 
 }
 
 .message-ai a:hover {
-  text-decoration: underline;
+  opacity: 0.8;
+  text-decoration: none;
+}
+
+.message-ai span.citation {
+  background-color: theme('colors.chat-green-dark');
+  color: white;
+  font-size: 0.8em;
+  border-radius: 0.8em;
+  -moz-border-radius: 0.8em;
+  -webkit-border-radius: 0.8em;
+  display: inline-block;
+  line-height: 1.6em;
+  margin-right: 5px;
+  text-align: center;
+  width: 1.6em; 
+}
+
+.citation-link {
+  background-color: theme('colors.chat-green-dark');
+  color: white;
+  text-decoration: none;
 }
 
 .justify-end {
