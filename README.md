@@ -1,6 +1,6 @@
 # Ai Need Help: AI Personal Assistant
 
-![image](https://github.com/user-attachments/assets/0556acf8-a2b4-49ea-9f09-122ef60f5ddc)
+![image](https://github.com/user-attachments/assets/18263d85-5570-4641-ba1d-c6d8f5172ab9)
 
 
 An AI assistant webapp using Cohere's LLM models through a Next.js frontend and a FastAPI backend. It currently implements two agents: a Calendar Agent that calls on tools to Google's Calendar API and a Web Search Agent that uses Tavily Web Search APIs. The assistant is currently able to route user requests to the appropriate agent based on the content of the user's message.
