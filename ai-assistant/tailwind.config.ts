@@ -1,6 +1,8 @@
 import type { Config } from 'tailwindcss';
 import typography from '@tailwindcss/typography';
 
+
+
 const config: Config = {
   content: [
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
@@ -16,8 +18,8 @@ const config: Config = {
           "conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))",
       },
       fontFamily: {
-        sans: ['Suse', 'sans-serif'],
-      'suse-bold': ['Suse-Bold', 'sans-serif'],
+        sans: ['Manrope', 'sans-serif'],
+      'manrope-bold': ['Manrope-Bold', 'sans-serif'],
       },
       colors: {
         'text': 'var(--text)',
@@ -30,7 +32,9 @@ const config: Config = {
         'chat-green': '#34B1AA',
         'chat-green-dark': '#2A8E87',
         'brand-orange': '#F29F67',
-        'brand-orange-dark': '#E08A4F'
+        'brand-orange-dark': '#E08A4F',
+        'button-brand-blue': '#6949ff',
+        'button-brand-blue-dark': '#503BB5',
        },
        
     },

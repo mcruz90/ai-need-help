@@ -1,5 +1,9 @@
 .markdown-content {
-  color: white;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
+  margin-left: 0.5rem;
+  color: #73685F;
   font-size: 0.875rem;
 
   h1 {
@@ -21,10 +25,14 @@
 pre {
   white-space: pre-wrap; /* Preserves line breaks */
   word-wrap: break-word; /* Allows long lines to break */
-  background-color: #f5f5f5; /* Optional: Background color for code blocks */
-  padding: 1em; /* Optional: Padding for better readability */
-  border-radius: 5px; /* Optional: Rounded corners */
-  overflow-x: auto; /* Adds horizontal scrollbar if needed */
+  background-color: #fff; /* Background color for code blocks */
+  padding: 1em; /* Padding for better readability */
+  border-radius: 10px; /* Rounded corners */
+  width: auto;
+}
+
+.custom-prose {
+  max-width: 80%; 
 }
 
 code {
@@ -40,4 +48,83 @@ code {
   blockquote {
     @apply border-l-4 border-gray-300 pl-4 italic;
   }
+}
+
+/* LaTeX styles */
+.katex-container {
+  max-width: 100%;
+  padding: 0.5em 0;
+  overflow: hidden; /* Hide all overflow */
+}
+
+.katex-display {
+  display: block;
+  margin: 1em 0;
+  text-align: center;
+  overflow: hidden; /* Hide all overflow */
+}
+
+.katex-inline {
+  display: inline-block;
+  padding: 0 0.2em;
+  max-width: 100%;
+  overflow: hidden; /* Hide all overflow */
+}
+
+/* Ensure matrices render correctly without horizontal scroll */
+.katex-html {
+  max-width: 100%;
+  overflow: hidden; /* Hide all overflow */
+}
+
+.katex .mathnormal {
+  font-style: normal;
+  overflow: hidden; /* Hide all overflow */
+}
+
+/* Improve matrix rendering */
+.katex .mord.mtable {
+  max-width: 100%;
+  overflow: hidden; /* Hide all overflow */
+}
+
+.katex .mord.mtable .mtr {
+  display: flex;
+  flex-wrap: wrap; /* Allow wrapping for very wide matrices */
+}
+
+.katex .mord.mtable .mtd {
+  display: inline-block;
+  padding: 0.2em;
+  text-align: center;
+  flex: 1 0 auto; /* Allow cells to grow and shrink */
+}
+
+/* Ensure line breaks are preserved in block LaTeX */
+.katex-display .katex-html {
+  white-space: normal; /* Allow text to wrap */
+  word-break: break-word; /* Break words if necessary */
+}
+
+/* Additional styles to handle very long equations */
+.katex-display .base {
+  max-width: 100%;
+  overflow-x: hidden; /* Allow horizontal scroll for extremely long single-line equations */
+  overflow-y: hidden;
+  padding-bottom: 5px; /* Add some padding to ensure scrollbar doesn't cover content */
+}
+
+/* Hide scrollbar for WebKit browsers */
+.katex-display .base::-webkit-scrollbar {
+  height: 3px;
+}
+
+.katex-display .base::-webkit-scrollbar-thumb {
+  background-color: #888;
+}
+
+/* For Firefox */
+.katex-display .base {
+  scrollbar-width: thin;
+  scrollbar-color: #888 transparent;
 }

@@ -1,79 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import ReactMarkdown, { Components } from 'react-markdown'; 
-import CodeBlock from '../codeblock/CodeBlock';
 import PastConversations from '../pastconversations/PastConversations';
 import './ChatInterface.css';
 import '../../markdown-styles.css';
 import { DocumentDuplicateIcon, PaperAirplaneIcon, MicrophoneIcon } from '@heroicons/react/24/outline';
 import { API_URL } from '../../utils/api';
-import rehypeRaw from 'rehype-raw';
-import rehypeSanitize from 'rehype-sanitize';
-
-interface MarkdownWithHTMLProps {
-    content: string;
-    components?: Components;
-}
-
-interface CodeComponentProps {
-    node?: any; 
-    inline?: boolean; 
-    className?: string;
-    children?: React.ReactNode;
-    [key: string]: any; // For additional props
-}
-
-// Create a React component to render sanitized HTML with ReactMarkdown
-function MarkdownWithHTML({ content }: MarkdownWithHTMLProps) {
-    return (
-        <ReactMarkdown
-            className="markdown-content prose prose-sm sm:prose lg:prose-lg xl:prose-xl"
-            rehypePlugins={[rehypeRaw, rehypeSanitize]}
-            components={{
-                code({
-                    node,
-                    inline,
-                    className,
-                    children,
-                    ...props
-                }: CodeComponentProps) { 
-                    const match = /language-(\w+)/.exec(className || '');
-                    const language = match ? match[1] : '';
-                    const codeString = String(children).replace(/\n$/, '');
-                    
-                    if (!inline) {
-                        return (
-                            <CodeBlock
-                                value={codeString}
-                                language={language || 'text'}
-                            />
-                        );
-                    }
-                    
-                    return (
-                        <code className={`bg-gray-700 text-white px-1 py-0.5 rounded ${className}`} {...props}>
-                            {children}
-                        </code>
-                    );
-                },
-                a({ node, ...props }) {
-                    return (
-                        <a {...props} target="_blank" rel="noopener noreferrer">
-                            {props.children}
-                        </a>
-                    );
-                },
-                sup({ node, ...props }) {
-                    return <sup className="inline">{props.children}</sup>;
-                },
-                blockquote({ node, ...props }) {
-                    return <blockquote className="border-l-4 border-gray-300 pl-4 italic" {...props} />;
-                },
-            }}
-        >
-            {content}
-        </ReactMarkdown>
-    );
-}
+import MarkdownBlock from './MarkdownBlock';
 
 // Define the ChatInterfaceProps interface 
 interface ChatInterfaceProps {
@@ -146,7 +77,7 @@ export default function ChatInterface({
                     </h1>
                 </div>
                 <button
-                    className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                    className="action-button-outline"
                     onClick={() => setShowPastConversations(!showPastConversations)}
                 >
                     {showPastConversations ? 'Back to Chat' : 'Past Chats '}
@@ -173,13 +104,13 @@ export default function ChatInterface({
                                             </div>
                                         ) : msg.text ? (
                                             <>
-                                                <MarkdownWithHTML content={msg.text} />
+                                                <MarkdownBlock content={msg.text} />
                                                 <button
                                                     onClick={() => copyToClipboard(msg.text, index)}
                                                     className="copy-button"
                                                     aria-label="Copy model response"
                                                 >
-                                                    <DocumentDuplicateIcon className={`h-5 w-5 ${copiedIndex === index ? 'text-green-500' : 'text-white'}`} />
+                                                    <DocumentDuplicateIcon className={`h-5 w-5 ${copiedIndex === index ? 'text-green-500' : 'text-gray-300'}`} />
                                                 </button>
                                             </>
                                         ) : null}

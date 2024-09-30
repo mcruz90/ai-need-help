@@ -1,35 +1,34 @@
 import chromadb
 from datetime import datetime
 import uuid
-from config import cohere_ef
 import logging
 from chromadb.errors import ChromaError
+from llm_models.embed import cohere_ef
 
-
-# Initialize ChromaDB client (persistent)
+# Initialize Persistent ChromaDB client
 CHROMA_DB_PATH = "./agent_conversation_data"
 client = chromadb.PersistentClient(path=CHROMA_DB_PATH)
 
 # Create or get existing conversation collection
-conversation_collection = client.get_or_create_collection(
+conversation_collection = client.get_collection(
     name="agent_conversations",
-    embedding_function=cohere_ef
+    embedding_function=cohere_ef,
 )
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def store_conversation(user_input, chatbot_response, conversation_id=None):
+def store_conversation(user_input: str, chatbot_response: str, conversation_id: str = None) -> None:
     """Store a conversation in the ChromaDB collection."""
     try:
         if not conversation_id:
             conversation_id = str(uuid.uuid4())
         
         conversation_collection.add(
-            documents=[f"User: {user_input}\nChatbot: {chatbot_response}"],
+            documents=[f"user: {user_input}\nassistant: {chatbot_response}"],
             metadatas=[{"type": "conversation", "timestamp": datetime.now().isoformat()}],
-            ids=[conversation_id]
+            ids=[conversation_id],
         )
         logger.info(f"Conversation stored successfully with ID: {conversation_id}")
         return conversation_id
@@ -40,6 +39,9 @@ def store_conversation(user_input, chatbot_response, conversation_id=None):
         logger.error(f"Unexpected error while storing conversation: {e}")
         raise
 
+# TODO: Implement a more sophisticated search algorithm
+# TODO: Test robustness of this function
+# TODO: Flesh out route to allow client to specify n_results
 def get_relevant_conversations(query, n_results=3):
     """Retrieve relevant conversations based on a query."""
     try:
@@ -66,7 +68,9 @@ def get_relevant_conversations(query, n_results=3):
         logger.error(f"Unexpected error while retrieving conversations: {e}")
         raise
 
-def get_conversation_by_id(conversation_id):
+# TODO: Review return type of this function
+# TODO: Test this function
+def get_conversation_by_id(conversation_id: str):
     """Retrieve a specific conversation by its ID."""
     try:
         result = conversation_collection.get(
@@ -89,8 +93,13 @@ def get_conversation_by_id(conversation_id):
         logger.error(f"Unexpected error while retrieving conversation: {e}")
         raise
 
-def get_recent_conversations(n_results=10):
+
+# TODO: Implement client function to allow user to specify n_results
+# TODO: Review return type of this function
+def get_recent_conversations(n_results=10) -> list:
     """Retrieve the most recent conversations."""
+
+    
     try:
         results = conversation_collection.get(
             where={"type": "conversation"},

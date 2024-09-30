@@ -9,6 +9,8 @@ import { useChat } from './hooks/useChat';
 import { setupVoiceRecognition } from './utils/voiceRecognition';
 import './components/chat/ChatInterface.css';
 import './components/codeblock/CodeBlock.css';
+import TipTapEditor from './components/tiptapeditor/TipTapEditor';
+//import NotionTipTapEditor from './components/tiptapeditor/NotionTipTapEditor';
 
 // This is the main page of the app; components are imported from other files and used to build the UI
 export default function Home() {
@@ -18,7 +20,7 @@ export default function Home() {
   const [isListening, setIsListening] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isAsideOpen, setIsAsideOpen] = useState(false);
-  const [asideContent, setAsideContent] = useState<'chat' | 'calendar'>('chat');
+  const [asideContent, setAsideContent] = useState<'notion' | 'calendar' | 'tipTap'>('notion');
 
   // Interim transcript is the partial transcript as the user is speaking
   const handleInterimTranscript = useCallback((transcript: string) => {
@@ -57,12 +59,26 @@ export default function Home() {
     }
   }, [isListening, voiceRecognition]);
 
-  const toggleAside = (content: 'chat' | 'calendar') => {
+  const toggleAside = (content: 'notion' | 'calendar' | 'tipTap') => {
     if (isAsideOpen && asideContent === content) {
       setIsAsideOpen(false);
     } else {
       setIsAsideOpen(true);
       setAsideContent(content);
+    }
+  };
+
+  // Function to render the active aside component
+  const renderAsideContent = () => {
+    switch (asideContent) {
+      case 'notion':
+        return <NotionDisplay />;
+      case 'calendar':
+        return <Calendar />;
+      case 'tipTap':
+        return <TipTapEditor />;
+      default:
+        return null;
     }
   };
 
@@ -73,47 +89,45 @@ export default function Home() {
         <header className="bg-white shadow-sm">
           <div className="w-full px-4 py-3 flex justify-between items-center">
             <h1 className="text-2xl font-semibold">hi</h1>
-            <div>
+            <div className="flex flex-row space-x-4">
               <button
-                onClick={() => toggleAside('chat')}
-                className="px-4 py-2 rounded-md bg-blue-500 text-white hover:bg-blue-600 transition-all duration-300 mr-2"
+                onClick={() => toggleAside('notion')}
+                className="send-button"
               >
-                {isAsideOpen && asideContent === 'chat' ? 'Close Chat' : 'Open Chat'}
+                {isAsideOpen && asideContent === 'notion' ? 'Close Notion' : 'Open Notion'}
               </button>
               <button
                 onClick={() => toggleAside('calendar')}
-                className="px-4 py-2 rounded-md bg-green-500 text-white hover:bg-green-600 transition-all duration-300"
+                className="send-button"
               >
                 {isAsideOpen && asideContent === 'calendar' ? 'Close Calendar' : 'Open Calendar'}
+              </button>
+              <button
+                onClick={() => toggleAside('tipTap')}
+                className="send-button"
+              >
+                {isAsideOpen && asideContent === 'tipTap' ? 'Close Editor' : 'Open Editor'}
               </button>
             </div>
           </div>
         </header>
         <div className="flex-1 flex overflow-hidden">
-          <section className={`overflow-hidden p-4 transition-all duration-300 ${
-            isAsideOpen ? 'w-[50%]' : 'w-full'
-          }`}>
-            <NotionDisplay />
+          <section className={`overflow-hidden p-4 transition-all duration-300 ${isAsideOpen ? 'w-[75%]' : 'w-full'}`}>
+            <ChatInterface
+              messages={messages}
+              onNewMessage={handleNewMessage}
+              interimTranscript={interimTranscript}
+              inputMessage={inputMessage}
+              setInputMessage={setInputMessage}
+              isListening={isListening}
+              toggleListening={toggleListening}
+            />
           </section>
-          <aside className={`bg-white border-l overflow-hidden transition-all duration-300 ${
-            isAsideOpen ? 'w-[50%]' : 'w-0'
-          }`}>
+          <aside className={`bg-white border-l overflow-hidden transition-all duration-300 ${isAsideOpen ? 'w-[25%]' : 'w-0'}`}>
             {isAsideOpen && (
               <div className="h-full flex flex-col">
                 <div className="flex-1 overflow-y-auto p-4">
-                  {asideContent === 'chat' ? (
-                    <ChatInterface
-                      messages={messages}
-                      onNewMessage={handleNewMessage}
-                      interimTranscript={interimTranscript}
-                      inputMessage={inputMessage}
-                      setInputMessage={setInputMessage}
-                      isListening={isListening}
-                      toggleListening={toggleListening}
-                    />
-                  ) : (
-                    <Calendar />
-                  )}
+                  {renderAsideContent()}
                 </div>
               </div>
             )}

@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routes import all_routes
-from config import CORS_ORIGINS
+from config import Config
 from db import client as db_client
 from contextlib import asynccontextmanager
 
@@ -19,7 +19,7 @@ app = FastAPI(lifespan=lifespan)
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ORIGINS,  # Your frontend URL
+    allow_origins=Config.CORS_ORIGINS, 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

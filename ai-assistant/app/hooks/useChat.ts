@@ -25,8 +25,8 @@ export function useChat() {
 
       setChatHistory(prev => [
         ...prev,
-        { role: 'User', content: message },
-        { role: 'Chatbot', content: fullResponse }
+        { role: 'user', content: message },
+        { role: 'assistant', content: fullResponse }
       ]);
 
     } catch (error) {

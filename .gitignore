@@ -65,9 +65,13 @@ ehthumbs.db
 Thumbs.db
 .pytest_cache
 
-# other private files
+# other private/tester files
 main_copy.py
 **/token.json
 **/credentials.json
 **/DEV_delete_db_data.py
 **/agent_conversation_data
+**/test_db_utils
+**/db_utils
+existing_data.json
+manage_project.py

@@ -1,13 +1,18 @@
 # Ai Need Help: AI Personal Assistant
 
-![image](https://github.com/user-attachments/assets/0556acf8-a2b4-49ea-9f09-122ef60f5ddc)
+![image](https://github.com/user-attachments/assets/18263d85-5570-4641-ba1d-c6d8f5172ab9)
+![image](https://github.com/user-attachments/assets/67df169e-9a7b-4001-8cc2-5cbd6f54da8c)
 
 
-An AI assistant webapp using Cohere's LLM models through a Next.js frontend and a FastAPI backend. It currently implements two agents: a Calendar Agent that calls on tools to Google's Calendar API and a Web Search Agent that uses Tavily Web Search APIs. The assistant is currently able to route user requests to the appropriate agent based on the content of the user's message.
+An AI assistant webapp using Cohere's LLM models through a Next.js frontend and a FastAPI backend. It implements a Router Agent that can route user requests to the appropriate agent based on the content of the user's message. The available agents are:
 
-Additionally, it also integrates with Notion for enhanced productivity features, but this is still in the early stages of development.
+1. a Calendar Agent that calls on tools to modify the user's calendar using Google Calendar API
+2. a Web Search Agent that can handle general information-seeking queries and uses Tavily Web Search APIs to ground its responses.
+3. a Tutor Agent that can assist students with their school work and provide responses based on the user's stated learning level.
 
-A tutor agent is also available to assist students with their school work, but this also still in the early stages of development and is not yet reliably routed to without the user explicitly asking for the tutor. The prompt template for the tutor agent is based (with some modification)on the Tutor prompt available on [Microsoft's Prompts for Education repository](https://github.com/microsoft/prompts-for-edu/blob/main/Students/Prompts/Tutor.MD).
+Additionally, the app also uses Notion API to retrieve pages and databases from the user's Notion workspace and a rich-text editor using Tiptap to aid in creating and editing Notion pages, but this is still in the early stages of development.
+
+The prompt template for the tutor agent is based (with some modification)on the Tutor prompt available on [Microsoft's Prompts for Education repository](https://github.com/microsoft/prompts-for-edu/blob/main/Students/Prompts/Tutor.MD).
 
 This project extends the [Cohere Calendar Agent](https://docs.cohere.com/page/calendar-agent) example and the [Cohere Tools on Langchain](https://docs.cohere.com/docs/tools-on-langchain) example for web search and general purpose interactions with Cohere's Command R+ model.
 
@@ -121,6 +126,7 @@ To learn more about the resources used in this project, check them out here:
 - [Tavily API Documentation](https://docs.tavily.com/)
 - [Cohere Tools on Langchain](https://docs.cohere.com/docs/tools-on-langchain)
 - [Notion API Documentation](https://developers.notion.com/)
+- [Tiptap Documentation](https://tiptap.dev/)
 
 ## License
 

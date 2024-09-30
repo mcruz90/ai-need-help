@@ -35,7 +35,7 @@ const PastConversations: React.FC<{ onSelectConversation: (id: string) => void }
   }
 
   return (
-    <div className="bg-white shadow-lg rounded-lg p-4 w-full">
+    <div className="bg-white shadow-lg rounded-lg p-4 w-full overflow-y-auto">
       <h2 className="text-2xl font-semibold text-gray-800 mb-4">Past Conversations</h2>
       {conversations.length === 0 ? (
         <p className="text-gray-500">No past conversations found.</p>
@@ -47,7 +47,7 @@ const PastConversations: React.FC<{ onSelectConversation: (id: string) => void }
               className="bg-gray-100 rounded-lg p-3 cursor-pointer hover:bg-gray-200 transition-colors"
               onClick={() => onSelectConversation(conversation.id)}
             >
-              <h3 className="font-semibold text-blue-600">{conversation.title}</h3>
+              <h3 className="font-semibold text-gray-800">{conversation.title}</h3>
               <p className="text-sm text-gray-600">{conversation.timestamp}</p>
             </li>
           ))}

@@ -1,20 +1,17 @@
-from config import cohere_model as model
-from config import cohere_embeddings as embd
+from config import Config, tavily_search
+from langchain.agents import AgentExecutor, Tool
+from langchain.memory import ConversationBufferMemory
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.tools.retriever import create_retriever_tool
 from langchain_community.document_loaders import WebBaseLoader
 from langchain_community.vectorstores import FAISS
-from langchain.tools.retriever import create_retriever_tool
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_cohere.react_multi_hop.agent import create_cohere_react_agent
 from langchain_cohere.chat_models import ChatCohere
 from models import TavilySearchInput
-from langchain.agents import AgentExecutor, Tool
-from langchain_cohere.react_multi_hop.agent import create_cohere_react_agent
-from langchain_core.prompts import ChatPromptTemplate
-from langchain.memory import ConversationBufferMemory
-from config import tavily_search
-
+from llm_models.embed import cohere_embeddings
 
 # Internet_search tool using Tavily
-
 internet_search = tavily_search
 internet_search.name = "internet_search"
 internet_search.description = "Useful for answering questions about current events, general knowledge, and timeless information, adaptively emphasizing recency when appropriate."
@@ -42,7 +39,7 @@ doc_splits = text_splitter.split_documents(docs_list)
 # Add to vectorstore
 vectorstore = FAISS.from_documents(
     documents=doc_splits,
-    embedding=embd,
+    embedding=cohere_embeddings,
 )
 
 vectorstore_retriever = vectorstore.as_retriever()
@@ -53,9 +50,23 @@ vectorstore_search = create_retriever_tool(
     description="Retrieve relevant info from a vectorstore that contains documents related to agents, prompt engineering, and adversarial attacks.",
 )
 
+######### Create tools #########
+tools = [
+    Tool(
+        name="Internet Search",
+        func=internet_search,
+        description="Useful for when you need to answer questions about current events or general knowledge."
+    ),
+    Tool(
+        name="Vector Database Search",
+        func=vectorstore_search,
+        description="Useful for when you need to find specific information from a curated database about agents, prompt engineering, and adversarial attacks."
+    )
+]
+
 ############### AGENT HERE ###############
 
-chat = ChatCohere(model=model, temperature=0.3)
+chat = ChatCohere(model=Config.COHERE_MODEL, temperature=0.3)
 
 # Preamble
 preamble = """
@@ -89,19 +100,6 @@ prompt = ChatPromptTemplate.from_messages([
     ("human", "{input}"),
 ])
 
-# Create tools
-tools = [
-    Tool(
-        name="Internet Search",
-        func=internet_search,
-        description="Useful for when you need to answer questions about current events or general knowledge."
-    ),
-    Tool(
-        name="Vector Database Search",
-        func=vectorstore_search,
-        description="Useful for when you need to find specific information from a curated database about agents, prompt engineering, and adversarial attacks."
-    )
-]
 
 # Create the ReAct agent
 agent = create_cohere_react_agent(
