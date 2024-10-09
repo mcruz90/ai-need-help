@@ -1,6 +1,40 @@
 import json
+from attr import attributes
+import html_sanitizer
 from fastapi import HTTPException
 from config import cohere_client
+
+
+sanitizer = html_sanitizer.Sanitizer({
+    'tags': ('a', 'b', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'i', 'u', 'em', 'strong', 'p', 'span', 'br', 'ul', 'ol', 'li', 'hr', 'sup'),
+    'attributes': {
+        'a': ('href', 'name', 'target', 'title', 'id', 'rel'),
+        'span': ('class', 'style'),
+        'p': ('class', 'style'),
+        'li': ('class', 'style'),
+        'ul': ('class', 'style'),
+        'ol': ('class', 'style'),
+        'h1': ('class', 'style'),
+        'h2': ('class', 'style'),
+        'h3': ('class', 'style'),
+        'h4': ('class', 'style'),
+        'h5': ('class', 'style'),
+        'h6': ('class', 'style'),
+        'span': ('class', 'style'),
+    },
+    "empty": {"hr", "a", "br"},
+    "separate": {"a", "p", "li"},
+    
+    }
+)
+
+
+def sanitize_html_content(html_content: str) -> str:
+    """
+    Sanitizes the HTML content to prevent XSS attacks.
+    """
+    return sanitizer.sanitize(html_content)
+
 
 def process_events(messages: list):
     for msg in messages:

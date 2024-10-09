@@ -3,8 +3,7 @@ from tools_utils import tools, functions_map
 from datetime import date
 from functools import lru_cache
 from datetime import datetime, timedelta
-
-model='command-r-plus-08-2024'
+from config import cohere_model as model
 
 preamble=f"""
         ## Task & Context
@@ -19,9 +18,9 @@ preamble=f"""
 
 @lru_cache(maxsize=100)
 def get_cached_calendar_events(date: str):
-    # Your existing get_calendar_events logic here
-    ...
+    pass
 
+@lru_cache(maxsize=100)
 def get_calendar_events(date: str):
     # Check if the cache is still valid (e.g., within the last minute)
     cache_key = f"calendar_events_{date}"

@@ -24,7 +24,9 @@ const config: Config = {
         'secondary': 'var(--secondary)',
         'accent': 'var(--accent)',
         'chat-blue': '#3B8FF3',
+        'chat-blue-dark': '#205BBF',
         'chat-green': '#34B1AA',
+        'chat-green-dark': '#207D76',
         'brand-orange': '#F29F67',
         'brand-orange-dark': '#E08A4F'
        },

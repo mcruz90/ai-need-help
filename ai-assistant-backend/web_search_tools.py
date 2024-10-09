@@ -1,5 +1,5 @@
-import os
-from config import tavily_client, cohere_embeddings
+from config import tavily_client
+from config import cohere_embeddings as embd
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import WebBaseLoader
 from langchain_community.vectorstores import FAISS
@@ -7,13 +7,10 @@ from langchain.tools.retriever import create_retriever_tool
 from langchain_cohere.chat_models import ChatCohere
 from models import TavilySearchInput
 from datetime import date
-
+from config import cohere_model as model
 from langchain.agents import AgentExecutor
 from langchain_cohere.react_multi_hop.agent import create_cohere_react_agent
 from langchain_core.prompts import ChatPromptTemplate
-
-# LLM model
-model='command-r-plus-08-2024'
 
 # Internet_search tool using Tavily
 internet_search = tavily_client
@@ -22,11 +19,7 @@ internet_search.description = "Returns a list of relevant document snippets for 
 internet_search.args_schema = TavilySearchInput
 
 
-
 ######## VECTOR_SEARCH TOOL ########
-
-# Set embeddings
-embd = cohere_embeddings
 
 # Docs to index
 urls = [

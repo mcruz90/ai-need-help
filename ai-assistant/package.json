@@ -16,15 +16,19 @@
     "cohere-ai": "^7.13.0",
     "gapi-script": "^1.2.0",
     "ics": "^3.7.6",
+    "katex": "^0.16.11",
     "lodash": "^4.17.21",
-    "next": "14.2.7",
+    "next": "^14.2.12",
     "next-transpile-modules": "^10.0.1",
     "react": "^18",
     "react-calendar": "^5.0.0",
     "react-dom": "^18",
     "react-markdown": "^9.0.1",
     "react-speech-recognition": "^3.10.0",
-    "react-syntax-highlighter": "^15.5.0"
+    "react-syntax-highlighter": "^15.5.0",
+    "rehype-katex": "^7.0.1",
+    "rehype-raw": "^7.0.0",
+    "remark-math": "^6.0.0"
   },
   "devDependencies": {
     "@babel/plugin-transform-runtime": "^7.25.4",

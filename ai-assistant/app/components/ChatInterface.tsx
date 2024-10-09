@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import ReactMarkdown from 'react-markdown';
-import CodeBlock from './CodeBlock';
 import PastConversations from './PastConversations';
 import './ChatInterface.css';
 import '../markdown-styles.css';
 import { DocumentDuplicateIcon, PaperAirplaneIcon, MicrophoneIcon } from '@heroicons/react/24/outline';
 import { API_URL } from '../utils/api';
+import { preprocessLatex } from '../utils/preprocessLatex';
+import MarkdownRenderer from './MarkdownRenderer';
 
 // Define the ChatInterfaceProps interface 
 interface ChatInterfaceProps {
@@ -97,26 +97,8 @@ export default function ChatInterface({ messages, onNewMessage, interimTranscrip
                                             </div>
                                         ) : msg.text ? (
                                             <>
-                                                <ReactMarkdown
-                                                    className="markdown-content"
-                                                    components={{
-                                                        code({ node, className, children, ...props }) {
-                                                            const match = /language-(\w+)/.exec(className || '');
-                                                            return match ? (
-                                                                <CodeBlock
-                                                                    value={String(children).replace(/\n$/, '')}
-                                                                    language={match[1]}
-                                                                />
-                                                            ) : (
-                                                                <code className={className} {...props}>
-                                                                    {children}
-                                                                </code>
-                                                            );
-                                                        }
-                                                    }}
-                                                >
-                                                    {msg.text}
-                                                </ReactMarkdown>
+                                                
+                                                    <MarkdownRenderer content={preprocessLatex(msg.text)} />
                                                 <button
                                                     onClick={() => copyToClipboard(msg.text, index)}
                                                     className="copy-button"
