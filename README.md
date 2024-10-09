@@ -1,13 +1,17 @@
 # Ai Need Help: AI Personal Assistant
 
 ![image](https://github.com/user-attachments/assets/18263d85-5570-4641-ba1d-c6d8f5172ab9)
-![image](https://github.com/user-attachments/assets/67df169e-9a7b-4001-8cc2-5cbd6f54da8c)
 =======
 
 An AI assistant webapp using Cohere's LLM models through a Next.js frontend and a FastAPI backend. It implements a Router Agent that can route user requests to the appropriate agent based on the content of the user's message. The available agents are:
 
 1. a Calendar Agent that calls on tools to modify the user's calendar using Google Calendar API
+
+![image](https://github.com/user-attachments/assets/67df169e-9a7b-4001-8cc2-5cbd6f54da8c)
+
 2. a Web Search Agent that can handle general information-seeking queries and uses Tavily Web Search APIs to ground its responses.
+
+
 3. a Tutor Agent that can assist students with their school work and provide responses based on the user's stated learning level.
 
 Additionally, the app also uses Notion API to retrieve pages and databases from the user's Notion workspace and a rich-text editor using Tiptap to aid in creating and editing Notion pages, but this is still in the early stages of development.

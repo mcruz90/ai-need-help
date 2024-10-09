@@ -1,4 +1,5 @@
 import re
+import json
 from llm_models.chat import chat_model
 
 ### Context extraction functions for router agent ###
@@ -152,6 +153,69 @@ def enhance_output_with_citations(output: str, citations: list) -> str:
         if line.startswith('#') and '<span class="citation">' in line:
             formatted_lines.append('')
     
+    # Join the formatted lines
+    formatted_output = '\n'.join(formatted_lines).strip()
+    
+    return formatted_output
+
+
+def output_with_citations(output: str, citations: dict) -> str:
+    """
+    Enhances the output string with inline citations that link directly to the URLs.
+    
+    :param output_data: A dictionary containing 'response' and 'citations'
+    :return: Enhanced output string with inline citations linking to URLs
+    """
+    
+    url_dict = {}
+    current_number = 1
+
+    # Sort citations by their end position in descending order
+    sorted_citations = sorted(citations, key=lambda x: x.end, reverse=True)
+
+    for citation in sorted_citations:
+        urls = set()
+        if citation.sources:
+            for source in citation.sources:
+                if hasattr(source, 'tool_output') and 'documents' in source.tool_output:
+                    documents = source.tool_output['documents']
+                    try:
+                        documents_list = json.loads(documents)
+                        for doc in documents_list:
+                            if 'data' in doc and 'url' in doc['data']:
+                                urls.add(doc['data']['url'])
+                    except json.JSONDecodeError:
+                        print(f"Error decoding JSON: {documents}")
+
+        citation_links = []
+        for url in urls:
+            if url not in url_dict:
+                url_dict[url] = current_number
+                current_number += 1
+            num = url_dict[url]
+            citation_links.append(f'<a href="{url}" class="citation-link" target="_blank" rel="noopener noreferrer"><span class="citation">{num}</span></a>')
+        
+        citation_marker = ''.join(sorted(citation_links))
+        output = output[:citation.end] + citation_marker + output[citation.end:]
+
+    # Clean up and format the output
+    lines = output.split('\n')
+    formatted_lines = []
+    
+    for line in lines:
+        # Remove excess commas and spaces
+        line = re.sub(r'\s+', ' ', line).strip(', ')
+        
+        # Handle list items and headings
+        if line.startswith('- ') or line.startswith('#'):
+            formatted_lines.append('')  # Add empty line before
+        
+        formatted_lines.append(line)
+        
+        # Add newline after headings with citations
+        if line.startswith('#') and '<span class="citation">' in line:
+            formatted_lines.append('')
+
     # Join the formatted lines
     formatted_output = '\n'.join(formatted_lines).strip()
     

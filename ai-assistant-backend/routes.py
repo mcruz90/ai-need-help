@@ -28,25 +28,19 @@ async def chat(request: ChatRequest):
             full_history.append({"role": msg.role, "content": msg.content})
             if len(chat_history) < MAX_CONTEXT_TURNS:
                 chat_history.append({"role": msg.role, "content": msg.content})
-            if msg.role == "chatbot" and hasattr(msg, 'agent_type'):
+            if msg.role == "assistant" and hasattr(msg, 'agent_type'):
                 previous_agent_type = msg.agent_type
         
         user_message = request.messages[-1].content
 
-        router_response = router_agent(user_message, chat_history, previous_agent_type)
-
-        logger.info(f"Router response: {router_response}") 
+        router_response = await router_agent(user_message, chat_history, previous_agent_type)
 
         full_history.append({"role": "user", "content": user_message})
         full_history.append(router_response)
         chat_history = full_history[-MAX_CONTEXT_TURNS:]
 
-        logger.info(f"chat_history after router response: {chat_history}")
-
         logger.debug(f"Storing conversation: user_message={user_message}, response={router_response}")
         store_conversation(user_message, router_response["content"])
-
-        logger.info(f"router_response: {router_response}")
 
         async def event_stream():
             if router_response:

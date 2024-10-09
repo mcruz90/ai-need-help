@@ -2,6 +2,7 @@ import os
 import cohere
 from dotenv import load_dotenv
 from langchain_community.tools.tavily_search import TavilySearchResults
+from tavily import TavilyClient
 
 # Load environment variables
 load_dotenv()
@@ -15,6 +16,7 @@ class Config:
     # Cohere models
     COHERE_MODEL = 'command-r-plus-08-2024'
     EMBED_MODEL = 'embed-english-v2.0'
+    RERANK_MODEL = 'rerank-multilingual-v3.0'
 
 
     # Initialize Cohere client
@@ -24,10 +26,16 @@ class Config:
 
     @classmethod
     def init_tavily_search(cls):
-        os.environ["TAVILY_API_KEY"] = cls.TAVILY_API_KEY
         return TavilySearchResults(max_results=8)
+    
+    @classmethod
+    def init_cohere_tavily_search(cls):
+        return TavilyClient(api_key=cls.TAVILY_API_KEY)
+        
 
 # Create instances of the Cohere client
 cohere_client = Config.init_cohere_client()
 # Create Tavily search instance
 tavily_search = Config.init_tavily_search()
+
+tavily_client = Config.init_cohere_tavily_search()

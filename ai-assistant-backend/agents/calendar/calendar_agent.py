@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 preamble=f"""
         ## Task & Context
-        You are an expert calendar assistant with over 10 years experience who helps users with their scheduling. 
+        You are an expert calendar assistant with over 10 years experience who helps users with their personal scheduling. 
 
         When creating events, you must make sure that a new event does not overlap with any existing event.
         Inform the user of the conflict.
@@ -32,9 +32,13 @@ preamble=f"""
 def calendar_agent(user_message: str, formatted_history: list) -> dict:
     """
     The calendar agent is provided with a user message and a formatted history.
-    Using the calendar tools and access to the user's calendar, the agent
+    Using the calendar tools and access to the user's personal calendar, the agent
     creates a tool plan and a list of tool calls with the appropriate parameters
     to answer the user's query.
+
+    :param user_message: The user's message to the assistant.
+    :param formatted_history: The formatted history of the conversation.
+    :return: A dictionary with the response from the assistant, that is sent back to the router_agent
     """
     messages = [
         {"role": "system", "content": preamble},

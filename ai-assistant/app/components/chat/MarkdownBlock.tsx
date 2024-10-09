@@ -4,7 +4,7 @@ import rehypeSanitize from 'rehype-sanitize';
 import katex from 'katex';
 import ReactMarkdown, { Components } from 'react-markdown'; 
 import CodeBlock from '../codeblock/CodeBlock';
-
+import remarkGfm from 'remark-gfm';
 
 interface MarkdownBlockProps {
     content: string;
@@ -41,10 +41,14 @@ const LatexRenderer: React.FC<{ latex: string; displayMode: boolean }> = ({ late
 };
 
 const MarkdownBlock: React.FC<MarkdownBlockProps> = ({ content }) => {
+    // Remove extra newlines between table rows
+    const formattedContent = content.replace(/\n+(?=\|)/g, '\n');
+
     return (
         <ReactMarkdown
             className="markdown-content custom-prose"
             rehypePlugins={[rehypeRaw, rehypeSanitize]}
+            remarkPlugins={[remarkGfm]}
             components={{
                 code({ node, inline, className, children, ...props }: CodeComponentProps) {
                     const match = /language-(\w+)/.exec(className || '');
@@ -84,9 +88,27 @@ const MarkdownBlock: React.FC<MarkdownBlockProps> = ({ content }) => {
                     }
                     return <p>{children}</p>;
                 },
+                // Custom components for table rendering
+                table: ({node, ...props}) => (
+                    <div className="overflow-x-auto my-4">
+                        <table className="min-w-full divide-y divide-gray-200" {...props} />
+                    </div>
+                ),
+                thead: ({node, ...props}) => <thead className="bg-gray-50" {...props} />,
+                tbody: ({node, ...props}) => <tbody className="bg-white divide-y divide-gray-200" {...props} />,
+                tr: ({node, ...props}) => <tr className="hover:bg-gray-50" {...props} />,
+                th: ({node, ...props}) => (
+                    <th
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        {...props}
+                    />
+                ),
+                td: ({node, ...props}) => (
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500" {...props} />
+                ),
             }}
         >
-            {content}
+            {formattedContent}
         </ReactMarkdown>
     );
 };
