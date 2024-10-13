@@ -126,9 +126,3 @@ def web_search_agent_with_context(user_input, chat_history, router_context, rout
         router_context=router_context,
         router_confidence=router_confidence
     )
-
-#if __name__ == "__main__":
-#    while True:
-#        user_input = input("Enter your question: ")
-#        res = web_search_agent.invoke({"input": user_input})
-#        print(res["output"])

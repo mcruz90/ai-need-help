@@ -1,11 +1,11 @@
-from config import Config
-from classify_examples import examples
+from llm_models.classify_examples import examples
+from config.config import cohere_client, Config
 
 #TODO: Consider other types of classification. Perhaps for the router to improve on agent selection?
 class Classifier:
     def __init__(self):
-        self.client = Config.cohere_client
-        self.model = Config.CLASSIFICATION_MODEL
+        self.client = cohere_client
+        self.model = Config.CLASSIFY_MODEL
 
     def classify(self, query: str, examples: list) -> float:
         response = self.client.classify(
@@ -47,4 +47,4 @@ class Classifier:
         return classification.labels.get('spam', 0).confidence
 
 
-classifier = Classifier()
+classify_model = Classifier()

@@ -47,3 +47,6 @@ examples = [
     ClassifyExample(text="How has the internet changed the way we communicate?", label="time_sensitive"),
     ClassifyExample(text="What are the key differences between major world religions?", label="timeless")
     ]
+
+
+_all_ = [examples]

@@ -15,17 +15,17 @@ calendar_route = APIRouter(prefix="/api/calendar")
 
 logger = logging.getLogger(__name__)
 
-MAX_CONTEXT_TURNS = 5
-SUMMARY_INTERVAL = 10
+MAX_CONTEXT_TURNS = 20
+SUMMARY_INTERVAL = 20
 
 @chat_route.post("/")
 async def chat(request: ChatRequest):
     try:
         chat_history = []
-        full_history = []
         previous_agent_type = None
+        
+         # Process incoming messages and build chat history
         for msg in request.messages:
-            full_history.append({"role": msg.role, "content": msg.content})
             if len(chat_history) < MAX_CONTEXT_TURNS:
                 chat_history.append({"role": msg.role, "content": msg.content})
             if msg.role == "assistant" and hasattr(msg, 'agent_type'):
@@ -33,14 +33,19 @@ async def chat(request: ChatRequest):
         
         user_message = request.messages[-1].content
 
+         # Call the router agent with the recent chat history
         router_response = await router_agent(user_message, chat_history, previous_agent_type)
 
-        full_history.append({"role": "user", "content": user_message})
-        full_history.append(router_response)
-        chat_history = full_history[-MAX_CONTEXT_TURNS:]
+        # Append the user message and router response to chat history
+        chat_history.append({"role": "user", "content": user_message})
+        chat_history.append(router_response)
+
+        # Update previous_agent_type based on the last assistant message
+        if "agent_type" in router_response:
+            previous_agent_type = router_response["agent_type"]
 
         logger.debug(f"Storing conversation: user_message={user_message}, response={router_response}")
-        store_conversation(user_message, router_response["content"])
+        store_conversation(user_message, router_response)
 
         async def event_stream():
             if router_response:

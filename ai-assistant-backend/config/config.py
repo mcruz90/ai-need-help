@@ -17,6 +17,7 @@ class Config:
     COHERE_MODEL = 'command-r-plus-08-2024'
     EMBED_MODEL = 'embed-english-v2.0'
     RERANK_MODEL = 'rerank-multilingual-v3.0'
+    CLASSIFY_MODEL = 'embed-english-v2.0'
 
 
     # Initialize Cohere client
@@ -39,3 +40,5 @@ cohere_client = Config.init_cohere_client()
 tavily_search = Config.init_tavily_search()
 
 tavily_client = Config.init_cohere_tavily_search()
+
+__all__ = ['cohere_client', 'tavily_search', 'tavily_client', Config]

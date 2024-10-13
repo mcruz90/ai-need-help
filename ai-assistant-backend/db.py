@@ -4,13 +4,20 @@ import uuid
 import logging
 from chromadb.errors import ChromaError
 from llm_models.embed import cohere_ef
+import os
 
 # Initialize Persistent ChromaDB client
 CHROMA_DB_PATH = "./agent_conversation_data"
+
+# Create the directory if it doesn't exist
+if not os.path.exists(CHROMA_DB_PATH):
+    os.makedirs(CHROMA_DB_PATH)
+
+
 client = chromadb.PersistentClient(path=CHROMA_DB_PATH)
 
 # Create or get existing conversation collection
-conversation_collection = client.get_collection(
+conversation_collection = client.get_or_create_collection(
     name="agent_conversations",
     embedding_function=cohere_ef,
 )

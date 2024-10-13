@@ -1,25 +1,39 @@
 import re
 import json
 from llm_models.chat import chat_model
+import logging
+from typing import List, Any
+
+logger = logging.getLogger(__name__)
 
 ### Context extraction functions for router agent ###
-def extract_key_info(user_input: str) -> str:
+def extract_key_info(user_input: str, chat_history: list) -> str:
     """
     Extracts the key information from the user's input to determine which agent to route the query to.
     """
     prompt = f"""
-    Given the following user input, extract and summarize the key information
-    that would be relevant for determining the most appropriate AI agent to handle the query.
-    Focus on the main topic, intent, and any specific requirements or constraints mentioned.
+    Analyze the user's input and chat history to extract key information for routing purposes. 
+    Your task is to provide a concise summary that will help determine the most appropriate AI agent to handle the query.
 
-    Your job is not to answer the user's question, but to gather the relevant details needed
-    to help the router agent determine which agent to route the user query to.
+    Focus on:
+    1. Main topic or subject area (e.g., math, coding, general knowledge, scheduling)
+    2. User's intent (e.g., seeking information, requesting a tutorial, scheduling an event)
+    3. Specific requirements or constraints mentioned
+    4. Any indication of ongoing conversations or previous agent interactions
+    5. Level of complexity or depth required in the response
 
-    This should be a short and concise response.
+    Do NOT attempt to answer the query. Instead, provide a brief, structured summary of the key points that will aid in routing.
 
-    User input: "{user_input}"
+    Chat history: "{chat_history}"
 
-    Key information:
+    Key Information Summary:
+    1. Topic:
+    2. Intent:
+    3. Specific Requirements:
+    4. Conversation Context:
+    5. Complexity Level:
+
+    Additional Relevant Details:
     """
 
     messages = [
@@ -27,60 +41,42 @@ def extract_key_info(user_input: str) -> str:
         {"role": "user", "content": user_input}
     ]
 
-    response = chat_model.generate_short_response(
-        messages,
-    )
+    response = chat_model.generate_response(messages)
 
     return response.message.content[0].text if response else None
 
-# TODO: Revisit whether both extract_context_info and extract_key_info are necessary
-def extract_context_info(formatted_history: list, user_input: str) -> str:
+def parse_agent_response(response: str) -> str:
     """
-    Extracts the context information from the chat history and user input.
+    Parses the response from the model to determine the agent type.
     """
-
-    system_messages = [msg['message'] for msg in formatted_history if msg['role'] == 'system']
-    summary = next((msg for msg in system_messages if msg.startswith("Conversation summary:")), None)
-    
-    key_info = extract_key_info(user_input)
-    
-    context = []
-    if summary:
-        context.append(f"Conversation summary: {summary.split(':', 1)[1].strip()}")
-    if key_info:
-        context.append(f"Key information: {key_info}")
-    
-    return " | ".join(context) if context else None
-
-# TODO: Redo confidence logic and methodology--it's currently overconfident in its response
-def parse_agent_response(response: str) -> tuple:
-    """
-    Parses the response from the model to determine the agent type and confidence level.
-    """
+    # First, try to match the format "AGENT_NAME: explanation"
     agent_match = re.match(r'^(\w+)(?:\s*:\s*(.*))?$', response.strip(), re.IGNORECASE)
-    if not agent_match:
-        return 'general', 0.5  # Default to general with low confidence if no match
-
-    agent_type = agent_match.group(1).lower()
-    reasoning = agent_match.group(2) if agent_match.group(2) else ""
-
-    if not reasoning:
-        confidence = 0.6
-    else:
-        confidence = min(0.6 + (len(reasoning) / 100), 0.9)
-        if re.search(r'\b(certain|sure|confident|definitely)\b', reasoning, re.IGNORECASE):
-            confidence = min(confidence + 0.1, 0.95)
-        if re.search(r'\b(unsure|maybe|possibly|not certain)\b', reasoning, re.IGNORECASE):
-            confidence = max(confidence - 0.1, 0.4)
-
-    return agent_type, confidence
+    
+    if agent_match:
+        return agent_match.group(1).lower()
+    
+    # If that fails, look for any word followed by a colon
+    agent_match = re.search(r'(\w+):', response)
+    
+    if agent_match:
+        return agent_match.group(1).lower()
+    
+    # If no match is found, log a warning and return 'general'
+    logger.warning(f"Could not parse agent type from response: {response}")
+    return 'general'
 
 def format_chat_history(chat_history: list) -> list:
-    """Formats the chat history for processing."""
-    return [
-        {"role": msg['role'].lower(), "content": msg['message'] if 'message' in msg else msg['content']}
-        for msg in chat_history[-5:]  # Only consider the last 5 messages for context
-    ]
+    """Formats the chat history for processing, returning only user and assistant messages."""
+    formatted_history = []
+    for msg in chat_history[-20:]:  # Only consider the last 20 messages for context
+        if isinstance(msg, dict) and 'role' in msg:
+            role = msg['role'].lower()
+            if role in ['user', 'assistant']:
+                content = msg.get('message') or msg.get('content') or ''
+                formatted_history.append({"role": role, "content": content})
+        else:
+            logger.warning(f"Unexpected message format in chat history: {msg}")
+    return formatted_history
 
 ### Response formatting functions ###
 
@@ -115,6 +111,14 @@ def enhance_output_with_citations(output: str, citations: list) -> str:
     :param citations: List of citation objects
     :return: Enhanced output string with inline citations linking to URLs
     """
+
+    
+    logger.debug(f"Received citations: {citations}")
+    for citation in citations:
+        logger.debug(f"Citation: start={citation.start}, end={citation.end}, text={citation.text}")
+        for source in citation.sources:
+            logger.debug(f"Source: {source}")
+
     url_dict = {}
     current_number = 1
 
@@ -158,14 +162,16 @@ def enhance_output_with_citations(output: str, citations: list) -> str:
     
     return formatted_output
 
-
-def output_with_citations(output: str, citations: dict) -> str:
+def output_with_citations(output: str, citations: List[Any]) -> str:
     """
     Enhances the output string with inline citations that link directly to the URLs.
     
-    :param output_data: A dictionary containing 'response' and 'citations'
+    :param output: The original output string
+    :param citations: A list of Citation objects from Cohere API
     :return: Enhanced output string with inline citations linking to URLs
     """
+    
+    logger.debug(f"Received citations: {citations}")
     
     url_dict = {}
     current_number = 1
@@ -174,18 +180,19 @@ def output_with_citations(output: str, citations: dict) -> str:
     sorted_citations = sorted(citations, key=lambda x: x.end, reverse=True)
 
     for citation in sorted_citations:
+        logger.debug(f"Processing citation: start={citation.start}, end={citation.end}, text={citation.text}")
         urls = set()
         if citation.sources:
             for source in citation.sources:
-                if hasattr(source, 'tool_output') and 'documents' in source.tool_output:
-                    documents = source.tool_output['documents']
+                logger.debug(f"Source: {source}")
+                if hasattr(source, 'tool_output') and isinstance(source.tool_output, dict) and 'content' in source.tool_output:
                     try:
-                        documents_list = json.loads(documents)
-                        for doc in documents_list:
-                            if 'data' in doc and 'url' in doc['data']:
+                        documents = json.loads(source.tool_output['content'])
+                        for doc in documents:
+                            if isinstance(doc, dict) and 'data' in doc and 'url' in doc['data']:
                                 urls.add(doc['data']['url'])
                     except json.JSONDecodeError:
-                        print(f"Error decoding JSON: {documents}")
+                        logger.error(f"Error decoding JSON: {source.tool_output['content']}")
 
         citation_links = []
         for url in urls:
@@ -193,10 +200,10 @@ def output_with_citations(output: str, citations: dict) -> str:
                 url_dict[url] = current_number
                 current_number += 1
             num = url_dict[url]
-            citation_links.append(f'<a href="{url}" class="citation-link" target="_blank" rel="noopener noreferrer"><span class="citation">{num}</span></a>')
+            citation_links.append(f'<a href="{url.strip()}" class="citation-link" target="_blank" rel="noopener noreferrer"><span class="citation">{num}</span></a>')
         
         citation_marker = ''.join(sorted(citation_links))
-        output = output[:citation.end] + citation_marker + output[citation.end:]
+        output = output[:citation.end].rstrip() + citation_marker + output[citation.end:].lstrip()
 
     # Clean up and format the output
     lines = output.split('\n')
@@ -218,5 +225,8 @@ def output_with_citations(output: str, citations: dict) -> str:
 
     # Join the formatted lines
     formatted_output = '\n'.join(formatted_lines).strip()
+    
+    # Remove any potential spaces between adjacent citation links
+    formatted_output = re.sub(r'(</a>)\s+(<a)', r'\1\2', formatted_output)
     
     return formatted_output

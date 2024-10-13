@@ -1,4 +1,4 @@
-from config import Config, cohere_client
+from config.config import Config, cohere_client
 
 
 

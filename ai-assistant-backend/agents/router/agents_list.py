@@ -7,15 +7,15 @@ from agents.cohere_web_search.web_search_agent import cohere_web_search_agent
 AGENTS = {
     'calendar': {
         "tool": calendar_agent,
-        "description": "Handles queries related to scheduling, managing appointments, and calendar reminders of the user's personal calendar. Do not use this agent for querying general events, or for any other purpose than scheduling and managing the  user's appointments."
+        "description": "Handles queries related to scheduling, managing appointments, and calendar reminders of the user's personal calendar. Do not use this agent for querying general events, or for any other purpose than scheduling and managing the user's appointments."
     },
     'tutor': {
         "tool": tutor_agent,
-        "description": "Handles educational queries requiring a formal lesson through step-by-step problem-solving, or personalized learning assistance in specific subjects like math, science, literature, or history."
+        "description": "Handles educational queries ONLY when the user explicitly requests tutoring assistance. Use this agent when the user asks for help with a specific topic, requests a lesson, or uses phrases very similar to 'can you teach me', 'can we review','explain step-by-step', or 'I need help understanding'. Do not use for general knowledge questions."
     },
     'general': {
         "tool": cohere_web_search_agent,
-        "description": "Handles queries seeking factual information, current events, general knowledge, or topics that may require an in-depth, informative explanation, but does not require a personalized formal lesson to learn about the topic."
+        "description": "Handles all queries seeking information, explanations, or answers, including complex topics and factual questions. Use this agent for any query that doesn't explicitly request tutoring or fall under other specialized agents."
     },
     'code': {
         "tool": web_search_agent,

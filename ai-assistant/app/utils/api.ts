@@ -25,7 +25,7 @@ export async function sendChatMessage(message: string, chatHistory: ChatMessage[
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      messages: [...chatHistory, { role: 'User', content: message }]
+      messages: [...chatHistory, { role: 'user', content: message }]
     }),
   });
 

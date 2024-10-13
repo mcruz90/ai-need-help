@@ -1,9 +1,10 @@
 from llm_models.chat import chat_model
 from agents.router.agents_list import AGENTS
 from agents.router.helper_functions import extract_key_info, parse_agent_response, enhance_output_with_citations, format_chat_history, output_with_citations
+from reflexion.reflexion import router_reflexion
 
 import asyncio
-from httpx import AsyncClient, TimeoutException
+from httpx import TimeoutException
 from typing import TypedDict, Literal
 
 import logging
@@ -15,229 +16,217 @@ class HandlerResponse(TypedDict):
     content: str
     agent_type: str
 
-def generate_preamble(agents: dict) -> str:
+def generate_preamble(agents: dict, previous_agent_type: str = None, context_info: str = None) -> str:
     agent_descriptions = "\n".join([f"- {agent}: {info['description']}" for agent, info in agents.items()])
     return f"""
     You are an expert router agent that determines which specialized agent can best respond to a given user query.
-    Your role is crucial in ensuring that user queries are directed to the most appropriate agent for accurate and helpful responses.
+    Your role is to analyze the query and context, then select the most appropriate agent.
 
     Available agents:
     {agent_descriptions}
 
+    Previous agent:
+    {previous_agent_type if previous_agent_type else 'None'}
+    
+    Context: 
+    {context_info if context_info else 'No additional context'}
+
     Instructions:
-    1. Carefully analyze the user's query and any provided context.
-    2. Determine the most suitable agent based on the query's content and the agents' specializations.
-    3. Provide your response in the following format:
+    1. Analyze the user's query, chat history, and any provided context.
+    2. Select the most suitable agent based on the query's content and the agents' specializations.
+    3. Respond ONLY with the agent name and a brief explanation in this format:
        AGENT_NAME: Brief explanation of why you chose this agent.
 
     Important guidelines:
-    - Only use the agent names listed above. Do not use alternative names for the agent.
-    - If a query doesn't clearly fit a specific agent, route it to the 'general' agent.
-    - For the tutor agent:
-      * Consider the user's learning context and previous interactions.
-      * If a tutoring session is ongoing (no explicit closure), continue routing to the tutor agent.
-    - For coding questions:
-      * Route to the 'code' agent unless the user specifically asks for help in learning to code.
-      * If it's about learning to code, route to the 'tutor' agent.
-    - Provide a concise but informative explanation for your choice to help with confidence assessment.
+    - Use only the agent names listed above. Do not invent new agent names.
+    - Route to 'general' for most factual queries, even if they involve scientific or complex topics.
+    - Only route to 'tutor' if the user explicitly asks for a lesson or detailed step-by-step explanation.
+    - For ongoing tutoring sessions, continue routing to the 'tutor' agent unless explicitly ended.
+    - Route coding questions to 'code' unless it's about learning to code (use 'tutor' for that).
+    - Provide a concise explanation for your choice to aid in confidence assessment.
+    - Do NOT answer the query yourself. Your job is ONLY to select an agent.
 
-    Remember, your role is to route, not to answer the query directly. Focus on selecting the most appropriate agent based on the query's nature and context.
+    Remember, you are routing, not answering. Focus solely on selecting the most appropriate agent.
+    
+    Your agent choice from the list:
     """
 
+MAX_REFLEXION_ITERATIONS = 2
 
 async def router_agent(user_input: str, chat_history: list, previous_agent_type: str = None) -> HandlerResponse:
     """
-    Router agent called in the chat route that determines which specialized agent can best respond to a given user query.
-    Send the router agent the user input, chat history, and the previous agent type as a dict to handle_query for processing.
-
-    :param user_input: The user's input.
-    :param chat_history: The chat history.
-    :param previous_agent_type: The previous agent type. Default is None if no previous agent type is provided (i.e. first message).
+    The router agent is responsible for selecting the most appropriate agent for handling a user's query.
+    It uses a combination of reflexion and direct handling of agent responses to ensure accurate and helpful routing.
     
-    returns the result from handle_query
-    handle query returns a dictionary with the following keys:
-    - "role": "assistant"
-    - "content": the response from the agent
-    - "agent_type": the type of agent that responded
+    returns a dictionary with the following keys:
+    - role: "assistant"
+    - content: the response from the selected agent
+    - agent_type: the type of the selected agent
+    - reflexion_result: the result of the reflexion process
+    - iterations: the number of iterations used to reach a satisfactory response
     """
     try:
         logger.info(f"Router agent called with input: {user_input}")
         logger.info(f"Previous agent type: {previous_agent_type}")
 
-        # Ensure all roles are lowercase and use 'content' instead of 'message'
         formatted_history = format_chat_history(chat_history)
-
-        context_info = extract_key_info(user_input)
-
+        context_info = extract_key_info(user_input, formatted_history)
         logger.info(f"Context info: {context_info}")
 
-        updated_preamble = generate_preamble(AGENTS) + f"""
+        preamble = generate_preamble(AGENTS, previous_agent_type, context_info)
         
-        Previous agent: {previous_agent_type if previous_agent_type else 'None'}
-        Context: {context_info if context_info else 'No additional context'}
-
-        Given details about the previous agent and context, analyze the following query and determine the most suitable agent:
-        "{user_input}"
-
-        Your response should consider the following information:
-        1. State the agent name followed by a colon and your reasoning. For example: "First agent choice: calendar: The user is asking for help with their schedule, so I should choose the calendar agent."
-        2. Reflect on the reasoning you used to determine the most suitable agent and consider the following:
-            a. Was your reasoning appropriate for the query?
-            b. Did you consider the context and previous agent used?
-            c. Did you consider how well the other available agents could respond to the query?
-            d. Did you choose the most appropriate agent based on the query and context?
-
-        3. If you are confident in your initial choice, then you can choose the same agent and respond in the same format: For example: "Final agent choice is unchanged: calendar: The query is uniquely related to the user's personal calendar and not to an external or publically available event. The other agents do not have access to the user's calendar and would not be able to perform the requested calendar-based tasks."
-        4. If, however, your reflection suggests that you should choose a different agent, then you can choose a different agent
-        and respond in the same format as the example above.
-        
-        Your final response should be formatted as: "[FINAL AGENT]: Detailed explanation incorporating reflection on the query and reasoning for choosing the agent."
-        
-        For example, if you changed your mind during your reflection:
-        "general: My first assumption was to choose the calendar agent, because the user is asking for help with their schedule. However, upon reflection, this query is actually about seeking general information about a TV event that requires searching external sources, which the general agent is equipped to do, and is therefore not related to the user's calendar, so my final choice is 'general'."
-        
-        Another example, if you did not change your mind during your reflection:
-        "calendar: My first assumption was to choose the calendar agent, because the user is asking for help with their schedule. Upon further reflection, my agent choice is unchanged, and I would still choose the calendar agent, as the query is uniquely related to events that is most likely to be on a user's personal calendar and not to an external or publically available event, such as a summer event or TV event. Furthermore, the other agents do not have access to the user's calendar and would not be able to perform the requested calendar-based tasks."
-        """
-
-        # Combine preamble and formatted history into a single messages list as required by Cohere Chat v2 endpoint
         messages = [
-            {"role": "system", "content": updated_preamble},
+            {"role": "system", "content": preamble},
             *formatted_history,
             {"role": "user", "content": user_input}
         ]
 
-        agent_type_response = chat_model.generate_short_response(messages)
+        satisfactory_response_found = False  # Initialize the variable here
+        reflexion_result = None  # Initialize reflexion_result outside the loop
 
-        logger.info(f"Agent type raw response: {agent_type_response.message.content[0].text}")
+        for iteration in range(MAX_REFLEXION_ITERATIONS):
+            agent_type_response = chat_model.generate_response(messages)
+            logger.info(f"Agent type raw response: {agent_type_response.message.content[0].text}")
 
-        agent_type, confidence = parse_agent_response(agent_type_response.message.content[0].text)
+            agent_type = parse_agent_response(agent_type_response.message.content[0].text)
+            logger.info(f"Parsed agent type: {agent_type}")
 
-        logger.info(f"Parsed agent type: {agent_type}, Confidence: {confidence}")
-        
-        if agent_type in AGENTS.keys():
-            selected_agent = agent_type
+            reflexion_result = router_reflexion(
+                user_input, 
+                agent_type, 
+                agent_type_response.message.content[0].text, 
+                {name: info['description'] for name, info in AGENTS.items()},
+                context_info
+            )
+
+            logger.info(f"Reflexion result: satisfactory_response={reflexion_result.get('satisfactory_response')}, confidence_score={reflexion_result.get('confidence_score')}")
+
+            if reflexion_result["satisfactory_response"] and reflexion_result["confidence_score"] > 0.7:
+                satisfactory_response_found = True
+                logger.info(f"Satisfactory response found at iteration {iteration + 1}. Breaking loop.")
+                break
+            else:
+                logger.info(f"Condition not met: satisfactory_response={reflexion_result.get('satisfactory_response')}, confidence_score={reflexion_result.get('confidence_score', 0)}")
+
+                logger.info(f"Reflexion iteration {iteration + 1}: Routing decision unsatisfactory. Attempting to improve.")
+
+                new_context = f"""
+                The previous routing decision was deemed unsatisfactory.
+                Critique: {reflexion_result['critique']}
+                Confidence Score: {reflexion_result['confidence_score']}
+                Suggested alternative agent: {reflexion_result['alternative_agent'] or 'None'}
+
+                Please reconsider the routing decision based on this feedback.
+                """
+
+                messages.append({"role": "system", "content": new_context})
+                messages.append({"role": "user", "content": user_input})
+
+        if satisfactory_response_found:
+            logger.info("Exited loop due to satisfactory response.")
         else:
-            matching_agents = [agent for agent in AGENTS.keys() if agent in agent_type]
-            selected_agent = matching_agents[0] if matching_agents else 'general'
-            confidence = max(confidence - 0.1, 0.3) if selected_agent == 'general' else confidence
+            logger.warning(f"Max iterations reached without finding a satisfactory response. Using last result.")
 
-        confidence_threshold = 0.7  
+        # Use the final agent type from reflexion
+        selected_agent = reflexion_result.get("alternative_agent") or agent_type
 
-        if selected_agent and confidence >= confidence_threshold:
-            logger.debug(f"Selected agent: {selected_agent}, Confidence: {confidence}")
-            
-            handler_response = await handle_query(user_input, chat_history, selected_agent, context_info, confidence)
+        if selected_agent.lower() not in AGENTS:
+            logger.warning(f"Selected agent '{selected_agent}' not found in AGENTS. Defaulting to 'general'.")
+            selected_agent = 'general'
 
-        else:
-            logger.debug(f"Unclear agent type, confidence: {confidence}")
-            handler_response = await handle_unclear_agent_type(user_input, chat_history, confidence)
-        
-        return{
-            "role": "assistant",
-            "content": handler_response["content"],
-            "agent_type": handler_response["agent_type"]
-        }
-        
+        logger.debug(f"Final selected agent: {selected_agent}")
+        handler_response = await handle_query(user_input, formatted_history, selected_agent, context_info)
+
+        if not all(key in handler_response for key in ["role", "content", "agent_type"]):
+            logger.warning(f"Invalid handler_response structure. Falling back to general agent.")
+            handler_response = {
+                "role": "assistant",
+                "content": "I apologize, but I couldn't process your request properly. Here's what I understand: " + agent_type_response.message.content[0].text,
+                "agent_type": "general"
+            }
+
+        handler_response["reflexion_result"] = reflexion_result
+        handler_response["iterations"] = iteration + 1
+
+        return handler_response
+
     except TimeoutException:
         logger.error("Timeout occurred while calling the Cohere API")
         return {"role": "assistant", "content": "I'm sorry, but I'm having trouble processing your request right now. Could you please try again in a moment?", "agent_type": "router"}
     except Exception as e:
-        logger.error(f"An error occurred in router_agent: {str(e)}")
-        return {"role": "assistant", "content": "I apologize, but an error occurred while processing your request. Please try again later.", "agent_type": "router"}
+        logger.error(f"An error occurred in router_agent: {str(e)}", exc_info=True)
+        return {"role": "assistant", "content": "I apologize, but an error occurred while processing your request. Please try again later.", "agent_type": "error"}
 
-
-# TODO: Possible duplicated function
-async def handle_query(user_input: str, formatted_history: list, agent_type: str, context_info: str = None, confidence: float = None):
-    """
-    Called by router agent to handle the query.
-
-    :param user_input: The user's input.
-    :param formatted_history: The formatted chat history.
-    :param agent_type: The type of agent to handle the query.
-    :param context_info: The context information.
-    :param confidence: The confidence of the agent type.
-    """
-
+async def handle_query(user_input: str, formatted_history: list, agent_type: str, context_info: str = None):
     try:
         logger.info(f"Handling query with {agent_type} agent")
-
-        return await handle_agent_response(agent_type, user_input, formatted_history, context_info, confidence)
-    
+        return await handle_agent_response(agent_type, user_input, formatted_history, context_info)
     except Exception as e:
         logger.error(f"Error in handle_query: {str(e)}", exc_info=True)
         return {"role": "assistant", "content": f"An error occurred while processing your query: {str(e)}", "agent_type": "error"}
 
+async def handle_agent_response(agent_type: str, user_input: str, formatted_history: list, context_info: str) -> dict:
+    try:
+        if agent_type == 'calendar':
+            logger.info(f"Calling calendar agent")
+            result = AGENTS[agent_type]["tool"](user_input, formatted_history)
+            return {"role": "assistant", "content": result["response"], "agent_type": agent_type}
+        elif agent_type == 'general':
+            logger.info(f"Calling general agent")
+            result = await AGENTS[agent_type]["tool"](user_input, formatted_history, context_info)
+            
+             # Check if the tool is a coroutine function (async)
+            if asyncio.iscoroutinefunction(AGENTS[agent_type]["tool"]):
+                result = await AGENTS[agent_type]["tool"](
+                    user_input, 
+                    formatted_history,
+                    context_info,
+                )
+            else:
+                # If it's not async, call it synchronously
+                result = AGENTS[agent_type]["tool"](
+                    user_input, 
+                    formatted_history,
+                    context_info,
+                )
 
-async def handle_agent_response(agent_type: str, user_input: str, formatted_history: list, context_info: str, confidence: float) -> dict:
-    """
-    Receives the agent type, user input, formatted history, context info, and confidence.
-    Calls the appropriate agent tool with the user input and formatted history.
-    Returns the agent's response as a dictionary back to the router agent to be returned to the client.
-
-    :param agent_type: The type of agent to handle the query.
-    :param user_input: The user's input.
-    :param formatted_history: The formatted chat history.
-    :param context_info: The context information.
-    :param confidence: The confidence of the agent type.
-    """
-    if agent_type == 'calendar':
-        result = AGENTS[agent_type]["tool"](user_input, formatted_history)
-        enhanced_output = enhance_output_with_citations(result["response"], result["citations"])
-        return {"role": "assistant", "content": enhanced_output, "agent_type": agent_type}
-    elif agent_type == 'general':
-        result = AGENTS[agent_type]["tool"](user_input, formatted_history)
-        logger.info(f"result keys: {result.keys()}")
-        logger.info(f"citations: {result.get('citations')}")  # Log the citations for debugging
-        
-        # Check if citations exist and are not None or empty
-        if result.get("citations") and isinstance(result["citations"], list):
-            cited_output = output_with_citations(result["response"], result["citations"])
-        else:
             # If no citations or citations is None, just use the response as is
             cited_output = result["response"]
 
-        logger.info(f"cited_output: {cited_output}")  # Log the final output for debugging
+            logger.info(f"model response: {result['response']}")
+             # Now that we've awaited the result, we can safely access it
+            if isinstance(result, dict):
+                output = result.get("response", "No response from model")
+                citations = result.get("citations", [])
+                if isinstance(citations, list) and citations:
+                    cited_output = output_with_citations(output, citations)
+                else:
+                    cited_output = output
+                return {"role": "assistant", "content": cited_output, "agent_type": agent_type}
+            else:
+                return {"role": "assistant", "content": "No response from model", "agent_type": agent_type}
 
-        return {"role": "assistant", "content": cited_output, "agent_type": agent_type}
-    else:
-        # Check if the tool is a coroutine function (async)
-        if asyncio.iscoroutinefunction(AGENTS[agent_type]["tool"].invoke):
-            result = await AGENTS[agent_type]["tool"].invoke({
-                "input": user_input, 
-                "chat_history": formatted_history,
-                "router_context": context_info,
-                "router_confidence": confidence
-            })
         else:
-            # If it's not async, call it synchronously
-            result = AGENTS[agent_type]["tool"].invoke({
-                "input": user_input, 
-                "chat_history": formatted_history,
-                "router_context": context_info,
-                "router_confidence": confidence
-            })
-
-        if isinstance(result, dict):
-            output = result.get("output") or result.get("response") or str(result)
-
-            enhanced_output = enhance_output_with_citations(output, result.get("citations", []))
-            return {"role": "assistant", "content": enhanced_output, "agent_type": agent_type}
-        else:
-            return {"role": "assistant", "content": str(result), "agent_type": agent_type}
-
-
-#TODO: Need more robust testing of this function
-async def handle_unclear_agent_type(user_input: str, chat_history: list, confidence: float) -> dict:
-    clarification_prompt = f"I'm not entirely sure which agent should handle this query (confidence: {confidence:.2f}): '{user_input}'. Could you please provide more context or clarify your question?"
-    
-    formatted_history = format_chat_history(chat_history)
-    
-    messages = [
-        {"role": "assistant", "content": clarification_prompt},
-        *formatted_history,
-    ]
-
-    clarification_response = chat_model.generate_response(messages)
-    
-    return {"role": "assistant", "content": clarification_response.message.content[0].text}
+            # Check if the tool is a coroutine function (async)
+            if asyncio.iscoroutinefunction(AGENTS[agent_type]["tool"].invoke):
+                result = AGENTS[agent_type]["tool"].invoke({
+                    "input": user_input, 
+                    "chat_history": formatted_history,
+                    "router_context": context_info,
+                })
+            else:
+                # If it's not async, call it synchronously
+                result = AGENTS[agent_type]["tool"].invoke({
+                    "input": user_input, 
+                    "chat_history": formatted_history,
+                    "router_context": context_info,
+                })
+            if isinstance(result, dict):
+                output = result.get("output") or result.get("response") or str(result)
+                enhanced_output = enhance_output_with_citations(output, result.get("citations", []))
+                return {"role": "assistant", "content": enhanced_output, "agent_type": agent_type}
+            else:
+                return {"role": "assistant", "content": str(output), "agent_type": agent_type}
+    except Exception as e:
+        logger.error(f"Error in handle_agent_response: {str(e)}", exc_info=True)
+        return {"role": "assistant", "content": f"An error occurred while processing your query: {str(e)}", "agent_type": "error"}
