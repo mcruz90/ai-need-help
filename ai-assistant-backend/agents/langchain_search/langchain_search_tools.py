@@ -112,15 +112,15 @@ agent = create_cohere_react_agent(
 memory = ConversationBufferMemory(memory_key="chat_history", input_key="input", output_key="output", return_messages=True)
 
 # Create the agent executor
-web_search_agent = AgentExecutor.from_agent_and_tools(
+langchain_search_agent = AgentExecutor.from_agent_and_tools(
     agent=agent,
     tools=tools,
     memory=memory,
     verbose=True
 )
 
-def web_search_agent_with_context(user_input, chat_history, router_context, router_confidence):
-    return web_search_agent.run(
+def langchain_search_agent_with_context(user_input, chat_history, router_context, router_confidence):
+    return langchain_search_agent.run(
         input=user_input,
         chat_history=chat_history,
         router_context=router_context,

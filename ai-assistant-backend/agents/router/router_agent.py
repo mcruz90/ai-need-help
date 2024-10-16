@@ -19,52 +19,50 @@ class HandlerResponse(TypedDict):
 def generate_preamble(agents: dict, previous_agent_type: str = None, context_info: str = None) -> str:
     agent_descriptions = "\n".join([f"- {agent}: {info['description']}" for agent, info in agents.items()])
     return f"""
-    You are an expert router agent that determines which specialized agent can best respond to a given user query.
-    Your role is to analyze the query and context, then select the most appropriate agent.
+    You are an expert router agent responsible for determining which specialized agent can best respond to a given user query. Your role is to analyze the query, context, and chat history, then select the most appropriate agent based on their specializations and the query's requirements.
 
     Available agents:
     {agent_descriptions}
 
     Previous agent:
     {previous_agent_type if previous_agent_type else 'None'}
-    
-    Context: 
+
+    Context:
     {context_info if context_info else 'No additional context'}
 
     Instructions:
-    1. Analyze the user's query, chat history, and any provided context.
-    2. Select the most suitable agent based on the query's content and the agents' specializations.
-    3. Respond ONLY with the agent name and a brief explanation in this format:
-       AGENT_NAME: Brief explanation of why you chose this agent.
+    1. Carefully analyze the user's query, chat history, and any provided context.
+    2. Consider the following factors when selecting an agent:
+    - Query topic and subject matter
+    - Complexity and depth of the required response
+    - Specific task or action requested (e.g., explanation, code generation, analysis)
+    - User's implied or stated expertise level
+    - Potential for multi-step or ongoing interactions
+    3. Select the most suitable agent based on the analysis and the agents' specializations.
+    4. Respond ONLY with the agent name and a brief explanation in this format:
+        AGENT_NAME: Brief explanation of why you chose this agent.
+    5. Include a confidence level (Low, Medium, High) in your selection.
 
     Important guidelines:
     - Use only the agent names listed above. Do not invent new agent names.
-    - Route to 'general' for most factual queries, even if they involve scientific or complex topics.
-    - Only route to 'tutor' if the user explicitly asks for a lesson or detailed step-by-step explanation.
-    - For ongoing tutoring sessions, continue routing to the 'tutor' agent unless explicitly ended.
-    - Route coding questions to 'code' unless it's about learning to code (use 'tutor' for that).
-    - Provide a concise explanation for your choice to aid in confidence assessment.
-    - Do NOT answer the query yourself. Your job is ONLY to select an agent.
+    - Route to 'general' for most factual queries, even if they involve scientific or complex topics, unless another agent is clearly more suitable.
+    - Only route to 'tutor' if the user explicitly asks for a lesson, detailed step-by-step explanation, or ongoing educational support.
+    - For ongoing tutoring sessions, continue routing to the 'tutor' agent unless explicitly ended or the topic significantly changes.
+    - Route coding questions to 'code' unless it's about learning to code concepts (use 'tutor' for that).
+    - For queries covering multiple topics, select the agent best equipped to handle the primary focus or the most complex aspect of the query.
+    - If a query is ambiguous or could be handled by multiple agents, choose the one that can provide the most comprehensive response.
+    - Provide a concise explanation for your choice, including your reasoning and confidence level.
+    - NEVEr answer the query yourself. Your job is ONLY to select an agent.
 
-    Remember, you are routing, not answering. Focus solely on selecting the most appropriate agent.
-    
-    Your agent choice from the list:
+    Remember, you are routing, not answering. Focus solely on selecting the most appropriate agent with a high degree of accuracy.
+
+    Your agent choice from the list, including confidence level:
     """
 
 MAX_REFLEXION_ITERATIONS = 2
+MAX_CONFIDENCE_THRESHOLD = 0.95
 
 async def router_agent(user_input: str, chat_history: list, previous_agent_type: str = None) -> HandlerResponse:
-    """
-    The router agent is responsible for selecting the most appropriate agent for handling a user's query.
-    It uses a combination of reflexion and direct handling of agent responses to ensure accurate and helpful routing.
-    
-    returns a dictionary with the following keys:
-    - role: "assistant"
-    - content: the response from the selected agent
-    - agent_type: the type of the selected agent
-    - reflexion_result: the result of the reflexion process
-    - iterations: the number of iterations used to reach a satisfactory response
-    """
     try:
         logger.info(f"Router agent called with input: {user_input}")
         logger.info(f"Previous agent type: {previous_agent_type}")
@@ -81,11 +79,11 @@ async def router_agent(user_input: str, chat_history: list, previous_agent_type:
             {"role": "user", "content": user_input}
         ]
 
-        satisfactory_response_found = False  # Initialize the variable here
-        reflexion_result = None  # Initialize reflexion_result outside the loop
+        satisfactory_response_found = False
+        reflexion_results = []
 
         for iteration in range(MAX_REFLEXION_ITERATIONS):
-            agent_type_response = chat_model.generate_response(messages)
+            agent_type_response = chat_model.generate_router_agent_response(messages)
             logger.info(f"Agent type raw response: {agent_type_response.message.content[0].text}")
 
             agent_type = parse_agent_response(agent_type_response.message.content[0].text)
@@ -99,15 +97,30 @@ async def router_agent(user_input: str, chat_history: list, previous_agent_type:
                 context_info
             )
 
-            logger.info(f"Reflexion result: satisfactory_response={reflexion_result.get('satisfactory_response')}, confidence_score={reflexion_result.get('confidence_score')}")
+            if not isinstance(reflexion_result, dict):
+                logger.error(f"Unexpected reflexion_result type: {type(reflexion_result)}")
+                reflexion_result = {"satisfactory_response": False, "confidence_score": 0, "critique": "Error in reflexion process", "alternative_agent": None}
 
-            if reflexion_result["satisfactory_response"] and reflexion_result["confidence_score"] > 0.7:
+            reflexion_results.append(reflexion_result)
+
+            logger.info(f"Reflexion result: {reflexion_result}")
+
+            satisfactory_response = reflexion_result.get("satisfactory_response", False)
+            confidence_score = float(reflexion_result.get("confidence_score", 0))
+
+            logger.info(f"Loop condition: satisfactory_response={satisfactory_response}, confidence_score={confidence_score}")
+            logger.info(f"Loop break decision: {(satisfactory_response and confidence_score > 0.7) or confidence_score > 0.9}")
+
+            if confidence_score >= MAX_CONFIDENCE_THRESHOLD:
+                logger.info(f"Maximum confidence threshold reached. Breaking loop.")
+                satisfactory_response_found = True
+                break
+
+            if (satisfactory_response and confidence_score > 0.7) or confidence_score > 0.9:
                 satisfactory_response_found = True
                 logger.info(f"Satisfactory response found at iteration {iteration + 1}. Breaking loop.")
                 break
             else:
-                logger.info(f"Condition not met: satisfactory_response={reflexion_result.get('satisfactory_response')}, confidence_score={reflexion_result.get('confidence_score', 0)}")
-
                 logger.info(f"Reflexion iteration {iteration + 1}: Routing decision unsatisfactory. Attempting to improve.")
 
                 new_context = f"""
@@ -122,13 +135,11 @@ async def router_agent(user_input: str, chat_history: list, previous_agent_type:
                 messages.append({"role": "system", "content": new_context})
                 messages.append({"role": "user", "content": user_input})
 
-        if satisfactory_response_found:
-            logger.info("Exited loop due to satisfactory response.")
+        if not satisfactory_response_found:
+            logger.warning("Max iterations reached without satisfactory response. Using highest-scoring result.")
+            selected_agent = max(reflexion_results, key=lambda x: x['confidence_score'])['alternative_agent'] or agent_type
         else:
-            logger.warning(f"Max iterations reached without finding a satisfactory response. Using last result.")
-
-        # Use the final agent type from reflexion
-        selected_agent = reflexion_result.get("alternative_agent") or agent_type
+            selected_agent = reflexion_result.get("alternative_agent") or agent_type
 
         if selected_agent.lower() not in AGENTS:
             logger.warning(f"Selected agent '{selected_agent}' not found in AGENTS. Defaulting to 'general'.")
@@ -156,7 +167,7 @@ async def router_agent(user_input: str, chat_history: list, previous_agent_type:
     except Exception as e:
         logger.error(f"An error occurred in router_agent: {str(e)}", exc_info=True)
         return {"role": "assistant", "content": "I apologize, but an error occurred while processing your request. Please try again later.", "agent_type": "error"}
-
+    
 async def handle_query(user_input: str, formatted_history: list, agent_type: str, context_info: str = None):
     try:
         logger.info(f"Handling query with {agent_type} agent")

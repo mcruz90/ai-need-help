@@ -1,10 +1,8 @@
 import re
 import json
 from llm_models.chat import chat_model
-import logging
+from utils import logger
 from typing import List, Any
-
-logger = logging.getLogger(__name__)
 
 ### Context extraction functions for router agent ###
 def extract_key_info(user_input: str, chat_history: list) -> str:
@@ -62,7 +60,7 @@ def parse_agent_response(response: str) -> str:
         return agent_match.group(1).lower()
     
     # If no match is found, log a warning and return 'general'
-    logger.warning(f"Could not parse agent type from response: {response}")
+    logger.warning(f"Could not parse agent type from response: {response}. Returning 'general'.")
     return 'general'
 
 def format_chat_history(chat_history: list) -> list:

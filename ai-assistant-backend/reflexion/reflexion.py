@@ -1,12 +1,10 @@
-import logging
 import json
 from typing import List, Dict, Any
 from config.config import cohere_client as client, Config
 from llm_models.embed import get_embeddings
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
-
-logger = logging.getLogger(__name__)
+from utils import logger
 
 def generate_text(prompt: str) -> str:
     messages = [{"role": "user", "content": prompt}]
@@ -16,32 +14,65 @@ def generate_text(prompt: str) -> str:
 class ModelEvaluator:
     def evaluate(self, user_input: str, model_response: str, tool_plan: List[str], context_info: str) -> Dict[str, Any]:
         evaluation_prompt = f"""
-        Evaluate the following response:
-        User Query: {user_input}
-        Model Response: {model_response}
-        Tool Plan: {tool_plan}
-        Context Information: {context_info}
-
-        Provide a detailed evaluation considering:
-        1. Relevance to the user's query
-        2. Accuracy of the information
-        3. Completeness of the response
-        4. Appropriateness of the tool plan
-        5. Consideration of the context information
-
-        Your evaluation should include:
-        - A qualitative assessment
-        - A numerical score between 0 and 1 (0 being completely unsatisfactory, 1 being perfect)
-        - Specific areas for improvement if any
-        - Suggestions for a new tool plan if the current one is inadequate
-
-        Format your response as a JSON object with the following keys:
-        {{
-            "score": float,
-            "critique": string,
-            "areas_for_improvement": list of strings,
-            "new_tool_plan": list of strings (empty if current plan is adequate)
-        }}
+        <prompt>
+            <task>Evaluate the following response</task>
+            <input>
+                <user_query>{user_input}</user_query>
+                <model_response>{model_response}</model_response>
+                <tool_plan>{tool_plan}</tool_plan>
+                <context_info>{context_info}</context_info>
+            </input>
+            
+            <evaluation_criteria>
+                <criterion>Relevance to the user's query</criterion>
+                <criterion>Accuracy of the information</criterion>
+                <criterion>Completeness of the response</criterion>
+                <criterion>Appropriateness of the tool plan</criterion>
+                <criterion>Consideration of the context information</criterion>
+            </evaluation_criteria>
+            
+            <output_requirements>
+                <requirement>
+                    <type>Qualitative assessment</type>
+                    <description>A detailed evaluation considering all criteria</description>
+                </requirement>
+                <requirement>
+                    <type>Numerical score</type>
+                    <description>A score between 0 and 1 (0 being completely unsatisfactory, 1 being perfect)</description>
+                </requirement>
+                <requirement>
+                    <type>Areas for improvement</type>
+                    <description>Specific suggestions for enhancing the response, if any</description>
+                </requirement>
+                <requirement>
+                    <type>New tool plan</type>
+                    <description>Suggestions for a new tool plan if the current one is inadequate</description>
+                </requirement>
+            </output_requirements>
+            
+            <response_format>
+                <format>JSON</format>
+                <structure>
+                    <key>
+                        <name>score</name>
+                        <type>float</type>
+                    </key>
+                    <key>
+                        <name>critique</name>
+                        <type>string</type>
+                    </key>
+                    <key>
+                        <name>areas_for_improvement</name>
+                        <type>list of strings</type>
+                    </key>
+                    <key>
+                        <name>new_tool_plan</name>
+                        <type>list of strings</type>
+                        <note>Empty if current plan is adequate</note>
+                    </key>
+                </structure>
+            </response_format>
+        </prompt>
         """
         evaluation_response = generate_text(evaluation_prompt)
         
@@ -236,7 +267,10 @@ class Reflexion:
             relevant_memories = self.memory.get_relevant_memories(user_input)
             logger.info(f"Retrieved {len(relevant_memories)} relevant memories")
 
-            is_satisfactory = bool(evaluation_result.get('is_satisfactory', False))
+            def str_to_bool(value: str) -> bool:
+                return str(value).lower() in ('true', 't', 'yes', 'y', '1')
+
+            is_satisfactory = str_to_bool(str(evaluation_result.get('is_satisfactory', False)))
             
             reflection_result = {
                 "satisfactory_response": is_satisfactory,
@@ -277,20 +311,78 @@ class Reflexion:
             return [self._convert_numpy_types(item) for item in obj]
         return obj
 
-async def reflexion(user_input: str, model_response: str, tool_plan: List[str], context_info: str) -> Dict[str, Any]:
+async def web_search_reflexion(user_input: str, model_response: str, tool_plan: List[str], context_info: str) -> Dict[str, Any]:
+    """
+    This function is used to reflect on the web search response process.
+    It evaluates the appropriateness and quality of the generated response for the given user query.
+    
+    Returns a dictionary with the following keys:
+    - satisfactory_response: True if the response is appropriate and sufficient, False otherwise.
+    - critique: Critique of the generated response.
+    - confidence_score: Confidence score for the response quality.
+    - areas_for_improvement: Suggestions for improving the response if it's unsatisfactory.
+    - evaluation_details: Detailed evaluation of the response generation process.
+    """
     model_evaluator = ModelEvaluator()
     mathematical_evaluator = MathematicalEvaluator()
     hybrid_evaluator = HybridEvaluator(model_evaluator, mathematical_evaluator)
     memory = Memory()
     reflexion_system = Reflexion(hybrid_evaluator, memory)
     
-    return reflexion_system.reflect(user_input, model_response, tool_plan, context_info)
+    prompt = f"""
+    <prompt>
+        Evaluate the generated response for the following user query:
+        <user_query>
+            {user_input}
+        </user_query>
+        <original_generated_response>
+            {model_response}
+        </original_generated_response>
+        <tool_plan>
+            {tool_plan}
+        </tool_plan>
+        <additional_context>
+            {context_info}
+        </additional_context>
+
+        Your task is to determine if the generated response is appropriate and sufficient for the user's query. Consider the following:
+        1. Does the response directly address the user's query?
+        2. Is the information provided accurate and up-to-date?
+        3. Is the response comprehensive enough for the complexity of the query?
+        4. Are there any areas where the response could be improved or expanded?
+        
+        Provide your evaluation in the following format:
+        1. Critique: Offer a brief analysis of the response quality and relevance.
+        2. Confidence Score: Rate the overall quality of the response on a scale of 0 to 1.   
+        3. Areas for Improvement: Suggest specific ways the response could be enhanced, if necessary.
+        Based on your evaluation, determine if the response is satisfactory.
+    </prompt>
+    """
+    
+    evaluation_result = reflexion_system.reflect(user_input, prompt, tool_plan, context_info)
+    
+    # Extract information from the evaluation result
+    is_satisfactory = evaluation_result.get('satisfactory_response', False)
+    confidence_score = evaluation_result.get('combined_score', 0.0)
+    critique = evaluation_result.get('critique', '')
+    areas_for_improvement = evaluation_result.get('areas_for_improvement', [])
+
+    # Log the evaluation result for debugging
+    logger.info(f"Web search evaluation result: {evaluation_result}")
+    
+    return {
+        "satisfactory_response": is_satisfactory,
+        "critique": critique,
+        "confidence_score": confidence_score,
+        "areas_for_improvement": areas_for_improvement,
+        "evaluation_details": evaluation_result
+    }
 
 def router_reflexion(user_input: str, selected_agent: str, agent_explanation: str, available_agents: Dict[str, str], context_info: str) -> Dict[str, Any]:
     """
     This function is used to reflect on the agent selection process.
     It evaluates the appropriateness of the selected agent for the given user query.
-
+    
     Returns a dictionary with the following keys:
     - satisfactory_response: True if the selected agent is appropriate, False otherwise.
     - critique: Critique of the agent selection decision.
@@ -331,21 +423,11 @@ def router_reflexion(user_input: str, selected_agent: str, agent_explanation: st
     
     evaluation_result = reflexion_system.reflect(user_input, prompt, [], context_info)
     
-    # Parse the evaluation result to extract key information
+    # Extract information from the evaluation result
+    is_satisfactory = evaluation_result.get('satisfactory_response', False)
+    confidence_score = evaluation_result.get('combined_score', 0.0)
     critique = evaluation_result.get('critique', '')
-    confidence_score = 0.0
-    alternative_agent = None
-
-    for line in evaluation_result.get('new_response', '').split('\n'):
-        if line.startswith('Confidence Score:'):
-            try:
-                confidence_score = float(line.split(':', 1)[1].strip())
-            except ValueError:
-                pass
-        elif line.startswith('Alternative Agent:'):
-            alternative_agent = line.split(':', 1)[1].strip()
-
-    is_satisfactory = confidence_score >= 0.7  # You can adjust this threshold
+    alternative_agent = evaluation_result.get('alternative_agent')
 
     return {
         "satisfactory_response": is_satisfactory,
@@ -356,4 +438,5 @@ def router_reflexion(user_input: str, selected_agent: str, agent_explanation: st
         "evaluation_details": evaluation_result
     }
 
-__all__ = ['ModelEvaluator', 'MathematicalEvaluator', 'HybridEvaluator', 'Memory', 'Reflexion', 'reflexion', 'router_reflexion']
+
+__all__ = ['ModelEvaluator', 'MathematicalEvaluator', 'HybridEvaluator', 'Memory', 'Reflexion', 'reflexion', 'router_reflexion', 'web_search_reflexion']

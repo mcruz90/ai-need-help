@@ -8,6 +8,18 @@ class ChatModel:
         self.client = cohere_client
         self.model_name = Config.COHERE_MODEL
 
+    def generate_router_agent_response(self, messages):
+       try:
+           response = self.client.chat(
+               messages=messages,
+               temperature=0.2,
+               model=self.model_name
+           )
+           return response
+       except Exception as e:
+           logging.error(f"Error generating router agent response: {str(e)}")
+           raise
+
     def generate_response(self, messages):
        try:
            response = self.client.chat(

@@ -8,7 +8,7 @@ from config import Config
 from langchain.agents import AgentExecutor, Tool
 from langchain_cohere.react_multi_hop.agent import create_cohere_react_agent
 from langchain_core.prompts import ChatPromptTemplate
-from agents.web_search.web_search_tools import internet_search, vectorstore_search
+from agents.langchain_search.langchain_search_tools import internet_search, vectorstore_search
 from langchain.memory import ConversationBufferMemory
 
 chat = ChatCohere(model=Config.COHERE_MODEL, temperature=0.3)
