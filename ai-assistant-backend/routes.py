@@ -1,11 +1,11 @@
-from fastapi import APIRouter
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, BackgroundTasks
 from models import ChatRequest
 from utils import handle_exception
 from agents.calendar.google_calendar_api import GoogleCalendarAPI
-from db import store_conversation, get_relevant_conversations, get_recent_conversations
-from agents.router.router_agent import router_agent
-import logging
+from db import get_relevant_conversations, get_recent_conversations
+#from agents.router.router_agent import router_agent
+from agents.triage.triage_agent import triage_agent
+from utils import logger
 
 # Define the APIRouter for the chat route
 chat_route = APIRouter(prefix="/api/chat")
@@ -13,47 +13,29 @@ chat_route = APIRouter(prefix="/api/chat")
 # Define the APIRouter for the calendar route
 calendar_route = APIRouter(prefix="/api/calendar")
 
-logger = logging.getLogger(__name__)
-
 MAX_CONTEXT_TURNS = 20
 SUMMARY_INTERVAL = 20
 
 @chat_route.post("/")
-async def chat(request: ChatRequest):
+async def chat(client_request: ChatRequest, background_tasks: BackgroundTasks):
     try:
         chat_history = []
-        previous_agent_type = None
         
          # Process incoming messages and build chat history
-        for msg in request.messages:
+        for msg in client_request.messages:
             if len(chat_history) < MAX_CONTEXT_TURNS:
                 chat_history.append({"role": msg.role, "content": msg.content})
-            if msg.role == "assistant" and hasattr(msg, 'agent_type'):
-                previous_agent_type = msg.agent_type
         
-        user_message = request.messages[-1].content
+        user_message = client_request.messages[-1].content
 
-         # Call the router agent with the recent chat history
-        router_response = await router_agent(user_message, chat_history, previous_agent_type)
+        if not client_request.messages:
+            logger.error("No messages provided from the client")
+            return {"error": "No messages provided from the client"}
+        
+        logger.info(f"User message: {user_message}")
+        logger.info(f"Chat history: {chat_history}")
 
-        # Append the user message and router response to chat history
-        chat_history.append({"role": "user", "content": user_message})
-        chat_history.append(router_response)
-
-        # Update previous_agent_type based on the last assistant message
-        if "agent_type" in router_response:
-            previous_agent_type = router_response["agent_type"]
-
-        logger.debug(f"Storing conversation: user_message={user_message}, response={router_response}")
-        store_conversation(user_message, router_response)
-
-        async def event_stream():
-            if router_response:
-                yield router_response["content"]
-            else:
-                yield "No response generated."
-
-        return StreamingResponse(event_stream(), media_type="text/event-stream")
+        return await triage_agent(user_message, chat_history, background_tasks)
 
     except Exception as e:
         logger.error(f"Error in chat route: {str(e)}", exc_info=True)
@@ -110,5 +92,4 @@ async def get_past_conversations():
         return {"conversations": formatted_convs}
     except Exception as e:
         return handle_exception(e)
-
 all_routes = [chat_route, calendar_route]

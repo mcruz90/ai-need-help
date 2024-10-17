@@ -11,8 +11,7 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  border: 1px solid #e5e7eb;
-  background-color: #fff;
+  background-color: #37474F;
   height: 100%;
 }
 
@@ -45,16 +44,15 @@
   padding-bottom: 2rem; 
 }
 .message-user {
-  background-color: #F7F5FF;
-  color: #58648e;
+  background-color: #30444E;
   border-radius: 0.5rem;
   align-self: flex-end;
   padding: 0.5rem;
 }
 
 .message-ai {
-  background-color: #ffffff;
   align-self: flex-start;
+  color: #96A7AF;
   border-radius: 0.5rem; 
   padding: 0.5rem;
   position: relative;
@@ -88,7 +86,7 @@
 }
 
 .message-ai span.citation {
-  background-color: theme('colors.chat-green-dark');
+  background-color: theme('colors.primary');
   color: #e5e7eb;
   font-size: 0.8em;
   border-radius: 0.8em;
@@ -102,7 +100,7 @@
 }
 
 .citation-link {
-  background-color: theme('colors.chat-green-dark');
+  background-color: theme('colors.button-brand-green-dark');
   color: #e5e7eb;
   text-decoration: none;
 }
@@ -128,12 +126,12 @@
 }
 
 .copy-button:hover {
-  background-color: #cbd5e0;
+  background-color: #37474F;
 }
 
 .input-form {
   padding: 1rem; 
-  background-color: #fff; 
+  background-color: #37474F; 
   border-radius: 0 0 0.5rem 0.5rem; 
 }
 
@@ -144,14 +142,12 @@
 
 .chat-input {
   flex-grow: 1; 
-  border: 1px solid #6949ff;
   border-radius: 9999px; 
   padding: 0.5rem 1rem; 
-  background-color: #EEEBFF; 
+  background-color: #2A3C44; 
 }
 
 .action-button-outline {
-  border: 1px solid #6949ff;
   border-radius: 9999px; 
   padding: 0.5rem 1.5rem; 
   margin-right: 1rem;
@@ -159,12 +155,25 @@
 }
 
 .action-button-outline:hover {
-  @apply bg-button-brand-blue-dark;
+  @apply bg-button-brand-green-dark;
   color: white; 
 }
 
+.menu-button {
+  border: 1px solid theme('colors.button-brand-neutral');
+  color: theme('colors.button-brand-neutral');
+  border-radius: 9999px; 
+  padding: 0.5rem 1.5rem; 
+  transition: background-color 0.4s; 
+}
+
+.menu-button:hover {
+  @apply bg-button-brand-neutral-dark; 
+}
+
+
 .send-button {
-  @apply bg-button-brand-blue;
+  @apply bg-button-brand-green;
   color: white;
   border-radius: 9999px; 
   padding: 0.5rem 1.5rem; 
@@ -172,20 +181,16 @@
 }
 
 .send-button:hover {
-  @apply bg-button-brand-blue-dark; 
+  @apply bg-button-brand-green-dark; 
 }
 
 .voice-button {
   margin-left: 8px;
   padding: 8px;
-  background-color: #f3f4f6;
   border-radius: 50%;
-  transition: background-color 0.3s;
+  transition: 0.3s;
 }
 
-.voice-button:hover {
-  background-color: #e5e7eb;
-}
 
 .voice-button.listening {
   background-color: #ef4444;

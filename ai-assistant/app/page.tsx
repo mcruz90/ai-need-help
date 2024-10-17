@@ -83,28 +83,28 @@ export default function Home() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-100 overflow-hidden">
+    <div className="flex h-screen overflow-hidden">
       <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
       <main className={`flex-1 flex flex-col transition-all duration-300 ${isSidebarOpen ? 'ml-64' : 'ml-0'}`}>
-        <header className="bg-white shadow-sm">
+        <header className="shadow-sm">
           <div className="w-full px-4 py-3 flex justify-between items-center">
             <h1 className="text-2xl font-semibold">hi</h1>
             <div className="flex flex-row space-x-4">
               <button
                 onClick={() => toggleAside('notion')}
-                className="send-button"
+                className="menu-button"
               >
                 {isAsideOpen && asideContent === 'notion' ? 'Close Notion' : 'Open Notion'}
               </button>
               <button
                 onClick={() => toggleAside('calendar')}
-                className="send-button"
+                className="menu-button"
               >
                 {isAsideOpen && asideContent === 'calendar' ? 'Close Calendar' : 'Open Calendar'}
               </button>
               <button
                 onClick={() => toggleAside('tipTap')}
-                className="send-button"
+                className="menu-button"
               >
                 {isAsideOpen && asideContent === 'tipTap' ? 'Close Editor' : 'Open Editor'}
               </button>
@@ -123,7 +123,7 @@ export default function Home() {
               toggleListening={toggleListening}
             />
           </section>
-          <aside className={`bg-white border-l overflow-hidden transition-all duration-300 ${isAsideOpen ? 'w-[25%]' : 'w-0'}`}>
+          <aside className={` border-l overflow-hidden transition-all duration-300 ${isAsideOpen ? 'w-[25%]' : 'w-0'}`}>
             {isAsideOpen && (
               <div className="h-full flex flex-col">
                 <div className="flex-1 overflow-y-auto p-4">

@@ -1,12 +1,20 @@
+import asyncio
+from typing import AsyncGenerator
 from config.config import Config, cohere_client
-import logging
-
-logger = logging.getLogger(__name__)
+from utils import logger
 
 class ChatModel:
     def __init__(self):
         self.client = cohere_client
         self.model_name = Config.COHERE_MODEL
+
+    async def generate_streaming_response(self, messages, tools):
+        return self.client.chat_stream(
+            model=self.model_name,
+            messages=messages,
+            tools=tools
+        )
+
 
     def generate_router_agent_response(self, messages):
        try:
@@ -17,18 +25,18 @@ class ChatModel:
            )
            return response
        except Exception as e:
-           logging.error(f"Error generating router agent response: {str(e)}")
+           logger.error(f"Error generating router agent response: {str(e)}")
            raise
 
-    def generate_response(self, messages):
+    async def generate_response(self, messages):
        try:
-           response = self.client.chat(
+           response = await self.client.chat(
                messages=messages,
                model=self.model_name
            )
            return response
        except Exception as e:
-           logging.error(f"Error generating response: {str(e)}")
+           logger.error(f"Error generating response: {str(e)}")
            raise
 
     def generate_seeded_response(self, messages, seed):
@@ -40,7 +48,7 @@ class ChatModel:
            )
            return response
        except Exception as e:
-           logging.error(f"Error generating response: {str(e)}")
+           logger.error(f"Error generating response: {str(e)}")
            raise
     
     def generate_json_response(self, messages: list) -> dict:
@@ -59,9 +67,9 @@ class ChatModel:
         )
         return response
     
-    def generate_response_with_tools(self, messages: list, tools: list) -> dict:
+    async def generate_response_with_tools(self, messages: list, tools: list) -> dict:
 
-        response = self.client.chat(
+        response = await self.client.chat(
             messages=messages,
             model=self.model_name,
             tools=tools

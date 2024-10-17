@@ -1,11 +1,11 @@
-from config.config import Config, cohere_client
+from config.config import Config, cohere_sync_client
 from langchain_cohere import CohereEmbeddings
 from chromadb.utils.embedding_functions import EmbeddingFunction
 from typing import List
 
 class CustomCohereEmbeddingFunction(EmbeddingFunction):
     def __init__(self, api_key, model_name=Config.EMBED_MODEL, embeddings_type=["float"], input_type=None):
-        self.client = cohere_client
+        self.client = cohere_sync_client
         self.model_name = model_name
         self.input_type = input_type
         self.embeddings_type = embeddings_type
@@ -35,7 +35,7 @@ def init_embeddings():
     return cohere_embeddings, cohere_ef
 
 def get_embeddings(texts: List[str]) -> List[List[float]]:
-    response = cohere_client.embed(
+    response = cohere_sync_client.embed(
         model=Config.EMBED_MODEL,
         texts=texts,
         embedding_types=["float"],

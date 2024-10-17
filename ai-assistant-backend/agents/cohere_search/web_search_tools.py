@@ -1,13 +1,11 @@
 from config import tavily_client
 from llm_models.rerank import rerank
-import logging
+from utils import logger
 from typing import List, Dict
-
-logger = logging.getLogger(__name__)
 
 # Create a web search function
 
-def web_search(queries: List[str]) -> List[Dict]:
+async def web_search(queries: List[str]) -> List[Dict]:
     all_results = []
     documents = []
 
@@ -24,7 +22,7 @@ def web_search(queries: List[str]) -> List[Dict]:
     rerank_docs = [f"{r['title']} {r['content']}" for r in all_results]
 
     # Rerank the results
-    rerank_response = rerank.rerank(query=queries[0], documents=rerank_docs)
+    rerank_response = await rerank.rerank(query=queries[0], documents=rerank_docs)
 
     # Create the final list of documents
     for idx, reranked_doc in enumerate(rerank_response.results):

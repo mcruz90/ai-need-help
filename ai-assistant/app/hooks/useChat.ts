@@ -2,38 +2,48 @@ import { useState, useCallback, useRef } from 'react';
 import { streamResponse, sendChatMessage, ChatMessage } from '../utils/api';
 
 export function useChat() {
-  const [messages, setMessages] = useState<Array<{ text: string; isUser: boolean; isLoading?: boolean }>>([]);
+  const [messages, setMessages] = useState<Array<{ text: string; isUser: boolean; isLoading?: boolean; isCited?: boolean }>>([]);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const isProcessingRef = useRef(false);
 
-  // Define the handleNewMessage function where the chatbot is triggered
   const handleNewMessage = useCallback(async (message: string) => {
     if (isProcessingRef.current) return;
     isProcessingRef.current = true;
 
-    setMessages(prev => [...prev, { text: message, isUser: true }, { text: '', isUser: false, isLoading: true }]);
+    // Add user message to messages and chatHistory
+    const userMessage = { text: message, isUser: true };
+    setMessages(prev => [...prev, userMessage]);
+    setChatHistory(prev => [...prev, { role: 'user', content: message }]);
+
+    // Add loading message
+    setMessages(prev => [...prev, { text: '', isUser: false, isLoading: true }]);
 
     try {
-      const reader = await sendChatMessage(message, chatHistory);
-      const fullResponse = await streamResponse(reader, (text) => {
-        setMessages(prev => {
-          const newMessages = [...prev];
-          newMessages[newMessages.length - 1] = { text, isUser: false, isLoading: false };
+      const response = await sendChatMessage(message, chatHistory);
+      let finalResponse = '';
+      await streamResponse(response, (chunk, isCited) => {
+        finalResponse = chunk;
+        setMessages((prevMessages) => {
+          const newMessages = [...prevMessages];
+          newMessages[newMessages.length - 1] = { 
+            text: finalResponse, 
+            isUser: false,
+            isCited: isCited
+          };
           return newMessages;
         });
       });
 
-      setChatHistory(prev => [
-        ...prev,
-        { role: 'user', content: message },
-        { role: 'assistant', content: fullResponse }
-      ]);
-
+      // Add assistant message to chatHistory
+      setChatHistory(prev => [...prev, { role: 'assistant', content: finalResponse }]);
     } catch (error) {
       console.error('Error:', error);
-      setMessages(prev => {
-        const newMessages = [...prev];
-        newMessages[newMessages.length - 1] = { text: "Sorry, an error occurred.", isUser: false, isLoading: false };
+      setMessages((prevMessages) => {
+        const newMessages = [...prevMessages];
+        newMessages[newMessages.length - 1] = { 
+          text: "Sorry, an error occurred.", 
+          isUser: false 
+        };
         return newMessages;
       });
     } finally {

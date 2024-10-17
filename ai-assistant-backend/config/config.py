@@ -19,11 +19,14 @@ class Config:
     RERANK_MODEL = 'rerank-multilingual-v3.0'
     CLASSIFY_MODEL = 'embed-english-v2.0'
 
-
     # Initialize Cohere client
     @classmethod
-    def init_cohere_client(cls):
+    def init_cohere_sync_client(cls):
         return cohere.ClientV2(cls.COHERE_API_KEY)
+
+    @classmethod
+    def init_cohere_client(cls):
+        return cohere.AsyncClientV2(cls.COHERE_API_KEY)
 
     @classmethod
     def init_tavily_search(cls):
@@ -36,9 +39,12 @@ class Config:
 
 # Create instances of the Cohere client
 cohere_client = Config.init_cohere_client()
+
+cohere_sync_client = Config.init_cohere_sync_client()
+
 # Create Tavily search instance
 tavily_search = Config.init_tavily_search()
 
 tavily_client = Config.init_cohere_tavily_search()
 
-__all__ = ['cohere_client', 'tavily_search', 'tavily_client', Config]
+__all__ = ['cohere_client', 'cohere_sync_client', 'tavily_search', 'tavily_client', Config]

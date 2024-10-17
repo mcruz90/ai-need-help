@@ -13,7 +13,6 @@ class Message(BaseModel):
 class ChatRequest(BaseModel):
     model_config = common_config
     messages: List[Message] = Field(description="List of messages in the chat history")
-    conversation_id: Optional[str] = Field(default=None, description="ID of the conversation if continuing an existing one")
 
 class Event(BaseModel):
     model_config = common_config

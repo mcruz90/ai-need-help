@@ -6,13 +6,13 @@ from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 from utils import logger
 
-def generate_text(prompt: str) -> str:
+async def generate_text(prompt: str) -> str:
     messages = [{"role": "user", "content": prompt}]
-    response = client.chat(messages=messages, model=Config.COHERE_MODEL)
+    response = await client.chat(messages=messages, model=Config.COHERE_MODEL)
     return response.message.content[0].text
 
 class ModelEvaluator:
-    def evaluate(self, user_input: str, model_response: str, tool_plan: List[str], context_info: str) -> Dict[str, Any]:
+    async def evaluate(self, user_input: str, model_response: str, tool_plan: List[str], context_info: str) -> Dict[str, Any]:
         evaluation_prompt = f"""
         <prompt>
             <task>Evaluate the following response</task>
@@ -74,7 +74,7 @@ class ModelEvaluator:
             </response_format>
         </prompt>
         """
-        evaluation_response = generate_text(evaluation_prompt)
+        evaluation_response = await generate_text(evaluation_prompt)
         
         try:
             evaluation_json = json.loads(evaluation_response)
@@ -258,10 +258,10 @@ class Reflexion:
         self.evaluator = evaluator
         self.memory = memory
 
-    def reflect(self, user_input: str, model_response: str, tool_plan: List[str], context_info: str) -> Dict[str, Any]:
+    async def reflect(self, user_input: str, model_response: str, tool_plan: List[str], context_info: str) -> Dict[str, Any]:
         try:
             logger.info(f"Starting reflection for user input: {user_input}")
-            evaluation_result = self.evaluator.evaluate(user_input, model_response, tool_plan, context_info)
+            evaluation_result = await self.evaluator.evaluate(user_input, model_response, tool_plan, context_info)
             logger.info(f"Evaluation result: {evaluation_result}")
             
             relevant_memories = self.memory.get_relevant_memories(user_input)
@@ -359,7 +359,7 @@ async def web_search_reflexion(user_input: str, model_response: str, tool_plan: 
     </prompt>
     """
     
-    evaluation_result = reflexion_system.reflect(user_input, prompt, tool_plan, context_info)
+    evaluation_result = await reflexion_system.reflect(user_input, prompt, tool_plan, context_info)
     
     # Extract information from the evaluation result
     is_satisfactory = evaluation_result.get('satisfactory_response', False)

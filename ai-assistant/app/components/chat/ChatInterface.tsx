@@ -8,7 +8,7 @@ import MarkdownBlock from './MarkdownBlock';
 
 // Define the ChatInterfaceProps interface 
 interface ChatInterfaceProps {
-    messages: Array<{ text: string; isUser: boolean; isLoading?: boolean }>;
+    messages: Array<{ text: string; isUser: boolean; isLoading?: boolean; isCited?: boolean }>;
     onNewMessage: (message: string) => Promise<void>;
     interimTranscript: string;
     inputMessage: string;

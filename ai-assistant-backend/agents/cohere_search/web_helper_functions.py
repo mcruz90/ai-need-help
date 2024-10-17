@@ -2,6 +2,20 @@ from utils import logger
 import json
 import re
 
+def format_chat_history(chat_history: list) -> list:
+    """Formats the chat history for processing, returning only user and assistant messages."""
+    formatted_history = []
+    for msg in chat_history[-20:]:  # Only consider the last 20 messages for context
+        if isinstance(msg, dict) and 'role' in msg:
+            role = msg['role'].lower()
+            if role in ['user', 'assistant']:
+                content = msg.get('message') or msg.get('content') or ''
+                formatted_history.append({"role": role, "content": content})
+        else:
+            logger.warning(f"Unexpected message format in chat history: {msg}")
+    return formatted_history
+
+
 def sanitize_json_string(json_string):
     # Remove any leading/trailing whitespace
     json_string = json_string.strip()
