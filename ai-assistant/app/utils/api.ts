@@ -26,10 +26,8 @@ export async function sendChatMessage(message: string, chatHistory: ChatMessage[
 export async function streamResponse(
   reader: ReadableStreamDefaultReader<Uint8Array>,
   onChunk: (text: string, isCited: boolean) => void
-): Promise<string> {
+): Promise<void> {
   const decoder = new TextDecoder();
-  let fullResponse = '';
-  let citedResponse = '';
   let isCitedResponse = false;
 
   while (true) {
@@ -40,18 +38,9 @@ export async function streamResponse(
     
     if (chunk.includes('__CITATIONS_START__')) {
       isCitedResponse = true;
-      citedResponse = '';
       continue;
     }
 
-    if (isCitedResponse) {
-      citedResponse += chunk;
-      onChunk(citedResponse, true);
-    } else {
-      fullResponse += chunk;
-      onChunk(fullResponse, false);
-    }
+    onChunk(chunk, isCitedResponse);
   }
-
-  return isCitedResponse ? citedResponse : fullResponse;
 }

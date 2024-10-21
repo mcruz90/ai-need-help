@@ -1,8 +1,16 @@
 import { useState, useCallback, useRef } from 'react';
 import { streamResponse, sendChatMessage, ChatMessage } from '../utils/api';
 
+interface Message {
+  text: string;
+  isUser: boolean;
+  isLoading?: boolean;
+  rawText?: string;
+  citedText?: string;
+}
+
 export function useChat() {
-  const [messages, setMessages] = useState<Array<{ text: string; isUser: boolean; isLoading?: boolean; isCited?: boolean }>>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const isProcessingRef = useRef(false);
 
@@ -11,7 +19,7 @@ export function useChat() {
     isProcessingRef.current = true;
 
     // Add user message to messages and chatHistory
-    const userMessage = { text: message, isUser: true };
+    const userMessage: Message = { text: message, isUser: true };
     setMessages(prev => [...prev, userMessage]);
     setChatHistory(prev => [...prev, { role: 'user', content: message }]);
 
@@ -20,22 +28,42 @@ export function useChat() {
 
     try {
       const response = await sendChatMessage(message, chatHistory);
-      let finalResponse = '';
+      let rawResponse = '';
+      let citedResponse = '';
+
       await streamResponse(response, (chunk, isCited) => {
-        finalResponse = chunk;
+        if (isCited) {
+          citedResponse = chunk;
+        } else {
+          rawResponse += chunk;
+          setMessages((prevMessages) => {
+            const newMessages = [...prevMessages];
+            newMessages[newMessages.length - 1] = { 
+              text: rawResponse,
+              isUser: false,
+              rawText: rawResponse,
+              isLoading: false
+            };
+            return newMessages;
+          });
+        }
+      }).then(() => {
+        // Update the message one last time with both responses
         setMessages((prevMessages) => {
           const newMessages = [...prevMessages];
           newMessages[newMessages.length - 1] = { 
-            text: finalResponse, 
+            text: citedResponse || rawResponse,
             isUser: false,
-            isCited: isCited
+            rawText: rawResponse,
+            citedText: citedResponse,
+            isLoading: false
           };
           return newMessages;
         });
       });
 
       // Add assistant message to chatHistory
-      setChatHistory(prev => [...prev, { role: 'assistant', content: finalResponse }]);
+      setChatHistory(prev => [...prev, { role: 'assistant', content: rawResponse }]);
     } catch (error) {
       console.error('Error:', error);
       setMessages((prevMessages) => {

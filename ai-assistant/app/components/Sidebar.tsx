@@ -18,7 +18,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     <>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`fixed top-4 left-4 z-20 p-2 rounded-md border border-button-brand-neutral text-gray-700 hover:bg-button-brand-neutral-dark hover:text-gray-900 transition-all duration-300 ${isOpen ? 'ml-60' : 'ml-0'}`}
+        className={`fixed top-4 left-4 z-20 p-2 rounded-md border border-button-brand-neutral text-button-brand-neutral-dark hover:bg-button-brand-neutral-dark hover:text-gray-900 transition-all duration-300 ${isOpen ? 'ml-60' : 'ml-0'}`}
       >
         {isOpen ? <XMarkIcon className="h-6 w-6" /> : <Bars3Icon className="h-6 w-6" />}
       </button>

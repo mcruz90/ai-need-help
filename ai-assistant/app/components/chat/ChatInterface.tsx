@@ -8,7 +8,7 @@ import MarkdownBlock from './MarkdownBlock';
 
 // Define the ChatInterfaceProps interface 
 interface ChatInterfaceProps {
-    messages: Array<{ text: string; isUser: boolean; isLoading?: boolean; isCited?: boolean }>;
+    messages: Array<{ text: string; isUser: boolean; isLoading?: boolean; isCited?: boolean; rawText?: string; citedText?: string }>;
     onNewMessage: (message: string) => Promise<void>;
     interimTranscript: string;
     inputMessage: string;
@@ -30,6 +30,7 @@ export default function ChatInterface({
     const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const [showPastConversations, setShowPastConversations] = useState(false);
+    const [showCitations, setShowCitations] = useState<boolean>(true);
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -64,6 +65,10 @@ export default function ChatInterface({
         } catch (error) {
             console.error('Error fetching conversation:', error);
         }
+    };
+
+    const toggleCitations = () => {
+        setShowCitations(!showCitations);
     };
 
     return (
@@ -102,18 +107,26 @@ export default function ChatInterface({
                                                 </svg>
                                                 Thinking...
                                             </div>
-                                        ) : msg.text ? (
+                                        ) : (
                                             <>
-                                                <MarkdownBlock content={msg.text} />
+                                                <MarkdownBlock content={showCitations ? (msg.citedText || msg.text) : (msg.rawText || msg.text)} />
                                                 <button
-                                                    onClick={() => copyToClipboard(msg.text, index)}
+                                                    onClick={() => copyToClipboard(showCitations ? (msg.citedText || msg.text) : (msg.rawText || msg.text), index)}
                                                     className="copy-button"
                                                     aria-label="Copy model response"
                                                 >
                                                     <DocumentDuplicateIcon className={`h-5 w-5 ${copiedIndex === index ? 'text-green-500' : 'text-gray-300'}`} />
                                                 </button>
+                                                {msg.citedText && msg.rawText && (
+                                                    <button
+                                                        onClick={toggleCitations}
+                                                        className="toggle-citations-button"
+                                                    >
+                                                        {showCitations ? 'Hide Citations' : 'Show Citations'}
+                                                    </button>
+                                                )}
                                             </>
-                                        ) : null}
+                                        )}
                                     </div>
                                 </div>
                             ))}

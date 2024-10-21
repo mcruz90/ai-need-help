@@ -88,8 +88,7 @@ export default function Home() {
       <main className={`flex-1 flex flex-col transition-all duration-300 ${isSidebarOpen ? 'ml-64' : 'ml-0'}`}>
         <header className="shadow-sm">
           <div className="w-full px-4 py-3 flex justify-between items-center">
-            <h1 className="text-2xl font-semibold">hi</h1>
-            <div className="flex flex-row space-x-4">
+            <div className="flex flex-row space-x-4 justify-end items-end w-full">
               <button
                 onClick={() => toggleAside('notion')}
                 className="menu-button"
