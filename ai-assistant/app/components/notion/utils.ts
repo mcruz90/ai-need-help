@@ -33,5 +33,3 @@ export function copyToClipboard(text: string) {
     console.error('Failed to copy: ', err);
   });
 }
-
-// ... Add other utility functions here

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import './markdown-styles.css';
 import 'katex/dist/katex.min.css';
+import SessionProviderWrapper from '@/app/components/SessionProviderWrapper';
 
 export const metadata: Metadata = {
   title: "AI Need Help",
@@ -15,7 +15,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <SessionProviderWrapper>{children}</SessionProviderWrapper>
+      </body>
     </html>
   );
 }

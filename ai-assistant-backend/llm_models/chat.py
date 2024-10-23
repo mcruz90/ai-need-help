@@ -1,20 +1,25 @@
-import asyncio
-from typing import AsyncGenerator
+from typing import AsyncIterator, Coroutine
 from config.config import Config, cohere_client
-from utils import logger
-
+from utils.utils import logger
+import time
 class ChatModel:
     def __init__(self):
         self.client = cohere_client
         self.model_name = Config.COHERE_MODEL
 
-    async def generate_streaming_response(self, messages, tools):
-        return self.client.chat_stream(
-            model=self.model_name,
-            messages=messages,
-            tools=tools
+    async def generate_streaming_response(self, messages, tools) -> AsyncIterator:
+        try:
+            start_time = time.time()
+            response = self.client.chat_stream(
+                model=self.model_name,
+                messages=messages,
+                tools=tools
         )
-
+            logger.info(f"generate_streaming_response completed in {time.time() - start_time:.2f}s")
+            return response
+        except Exception as e:
+            logger.error(f"Error generating streaming response at {time.time() - start_time:.2f}s: {str(e)}")
+            raise
 
     def generate_router_agent_response(self, messages):
        try:
@@ -29,14 +34,17 @@ class ChatModel:
            raise
 
     async def generate_response(self, messages):
+       start_time = time.time()
+       
        try:
            response = await self.client.chat(
                messages=messages,
                model=self.model_name
            )
+           logger.info(f"generate_response completed in {time.time() - start_time:.2f}s")
            return response
        except Exception as e:
-           logger.error(f"Error generating response: {str(e)}")
+           logger.error(f"Error generating response at {time.time() - start_time:.2f}s: {str(e)}")
            raise
 
     def generate_seeded_response(self, messages, seed):
@@ -67,15 +75,20 @@ class ChatModel:
         )
         return response
     
-    async def generate_response_with_tools(self, messages: list, tools: list) -> dict:
 
-        response = await self.client.chat(
+    async def generate_response_with_tools(self, messages: list, tools: list) -> Coroutine:
+        try:
+            start_time = time.time()
+            response = await self.client.chat(
             messages=messages,
             model=self.model_name,
             tools=tools
         )
-
-        return response
+            logger.info(f"generate_response_with_tools completed in {time.time() - start_time:.2f}s")
+            return response
+        except Exception as e:
+            logger.error(f"Error generating response with tools at {time.time() - start_time:.2f}s: {str(e)}")
+            raise
 
 # Create an instance of the ChatModel
 chat_model = ChatModel()

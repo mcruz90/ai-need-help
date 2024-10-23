@@ -7,46 +7,6 @@ functions_map = {
     "delete_calendar_event": delete_calendar_event
 }
 
-# Tool definitions
-tools = [
-    {
-        "type": "function",
-        "function": {
-            "name": "query_daily_sales_report",
-            "description": "Connects to a database to retrieve overall sales volumes and sales information for a given day.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "day": {
-                        "type": "string",
-                        "description": "Retrieves sales data for this day, formatted as YYYY-MM-DD.",
-                    }
-                },
-                "required": ["day"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "query_product_catalog",
-            "description": "Connects to a product catalog with information about all the products being sold, including categories, prices, and stock levels.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "category": {
-                        "type": "string",
-                        "description": "Retrieves product information data for all products in this category.",
-                    }
-                },
-                "required": ["category"],
-            },
-        },
-    },
-]
-
-
-
 
 tools = [
     {

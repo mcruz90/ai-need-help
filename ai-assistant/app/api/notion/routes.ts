@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// Fetch the content of a single page from Notion
 async function handlePageContentRequest(pageId: string) {
   try {
     const blocks = await notion.blocks.children.list({ block_id: pageId });
@@ -25,6 +26,7 @@ async function handlePageContentRequest(pageId: string) {
   }
 }
 
+// Fetch all pages from Notion
 async function handleMainNotionDataRequest() {
   try {
     let allPages: PageObjectResponse[] = [];
@@ -42,6 +44,7 @@ async function handleMainNotionDataRequest() {
       });
 
       const pagesWithContent = (searchResponse.results as PageObjectResponse[]).filter(page => {
+        
         // Check if the page has properties other than just the title
         return Object.keys(page.properties).length > 1 || 
                (page.properties.title && 'title' in page.properties.title && 

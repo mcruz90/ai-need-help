@@ -1,9 +1,12 @@
 from pydantic import BaseModel, Field, ConfigDict
-from typing import List, Optional
+from typing import List
 
 
 # Common configuration for all models
-common_config = ConfigDict(populate_by_name=True)
+common_config = ConfigDict(
+    populate_by_name=True,
+    arbitrary_types_allowed=True  # Allow arbitrary types for all models
+)
 
 class Message(BaseModel):
     model_config = common_config
@@ -13,6 +16,11 @@ class Message(BaseModel):
 class ChatRequest(BaseModel):
     model_config = common_config
     messages: List[Message] = Field(description="List of messages in the chat history")
+
+class ChatFileRequest(BaseModel):
+    model_config = common_config
+    message: str = Field(description="Content of the message")
+    chat_history: List[Message] = Field(default_factory=list, description="List of previous messages in the chat history")
 
 class Event(BaseModel):
     model_config = common_config

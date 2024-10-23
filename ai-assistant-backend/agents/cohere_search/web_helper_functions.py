@@ -1,4 +1,4 @@
-from utils import logger
+from utils.utils import logger
 import json
 import re
 

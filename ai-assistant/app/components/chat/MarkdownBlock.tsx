@@ -1,116 +1,125 @@
-import React from 'react';
+import React, { useMemo, memo } from 'react';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
-import katex from 'katex';
-import ReactMarkdown, { Components } from 'react-markdown'; 
-import CodeBlock from '../codeblock/CodeBlock';
+import ReactMarkdown from 'react-markdown';
+import CodeWrapper from './CodeWrapper';
 import remarkGfm from 'remark-gfm';
+import 'katex/dist/katex.min.css';
+import './markdown-styles.css';
+import { containsLatex, processLatex } from './LatexRenderer';
 
 interface MarkdownBlockProps {
     content: string;
-    components?: Components;
 }
-
-interface CodeComponentProps {
-    node?: any;
-    inline?: boolean;
-    className?: string;
-    children?: React.ReactNode;
-    [key: string]: any;
-}
-
-const LatexRenderer: React.FC<{ latex: string; displayMode: boolean }> = ({ latex, displayMode }) => {
-    const containerRef = React.useRef<HTMLSpanElement>(null);
-
-    React.useEffect(() => {
-        if (containerRef.current) {
-            katex.render(latex, containerRef.current, {
-                displayMode: displayMode,
-                throwOnError: false,
-                output: 'html',
-                strict: false,
-                trust: true,
-                macros: {
-                    "\\eqnarray": "\\begin{align}"
-                }
-            });
-        }
-    }, [latex, displayMode]);
-
-    return <span ref={containerRef} className={`katex-container ${displayMode ? 'katex-display' : 'katex-inline'}`} />;
-};
 
 const MarkdownBlock: React.FC<MarkdownBlockProps> = ({ content }) => {
-    // Remove extra newlines between table rows
-    const formattedContent = content.replace(/\n+(?=\|)/g, '\n');
+    const safeContent = useMemo(() => {
+        if (!content) return '';
+
+        // Clean up the content
+        return content
+            .replace(/\\"/g, '"')
+            .replace(/\\n/g, '\n')
+            .replace(/\\t/g, '\t')
+            .replace(/\\/g, '')
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, "'");
+    }, [content]);
 
     return (
         <ReactMarkdown
             className="markdown-content custom-prose"
-            rehypePlugins={[rehypeRaw, rehypeSanitize]}
             remarkPlugins={[remarkGfm]}
-            components={{
-                code({ node, inline, className, children, ...props }: CodeComponentProps) {
-                    const match = /language-(\w+)/.exec(className || '');
-                    const lang = match && match[1];
-
-                    if (inline) {
-                        return <code className={className} {...props}>{children}</code>;
+            rehypePlugins={[
+                rehypeRaw,
+                [rehypeSanitize, {
+                    attributes: {
+                        a: ['href', 'target', 'rel', 'className'],
+                        span: ['className', 'ref'],
+                        div: ['className'],
+                        p: ['className'],
+                        code: ['className', 'inline'],
+                        pre: ['className']
                     }
+                }]
+            ]}
+            components={{
+                code: ({ node, className, children, ...props }) => {
+                    const match = /language-(\w+)/.exec(className || '');
 
-                    if (lang === 'latex' || lang === 'math') {
-                        const latex = String(children).trim();
-                        return <LatexRenderer latex={latex} displayMode={true} />;
+                    if (match == null) {
+                        return (
+                            <code className="inline-code" {...props}>
+                                {children}
+                            </code>
+                        );
                     }
 
                     return (
-                        <CodeBlock
-                            value={String(children)}
-                            language={lang || 'text'}
-                        />
+                        <CodeWrapper
+                            node={node}
+                            className={className}
+                            {...props}
+                        >
+                            {children}
+                        </CodeWrapper>
                     );
                 },
-                p({ children }) {
-                    if (typeof children === 'string') {
-                        const parts = children.split(/(\$\$[\s\S]*?\$\$|\$[\s\S]*?\$)/g);
-                        return (
-                            <p>
-                                {parts.map((part, index) => {
-                                    if (part.startsWith('$$') && part.endsWith('$$')) {
-                                        return <LatexRenderer key={index} latex={part.slice(2, -2)} displayMode={true} />;
-                                    } else if (part.startsWith('$') && part.endsWith('$')) {
-                                        return <LatexRenderer key={index} latex={part.slice(1, -1)} displayMode={false} />;
-                                    }
-                                    return part;
-                                })}
-                            </p>
-                        );
+                p: ({ node, children }) => {
+                    const hasBlockElements = React.Children.toArray(children).some(
+                        child => React.isValidElement(child) &&
+                            child.props?.node?.type === 'element' &&
+                            ['pre', 'div', 'code'].includes(child.props.node.tagName)
+                    );
+
+                    if (hasBlockElements) {
+                        return <>{children}</>;
                     }
-                    return <p>{children}</p>;
+
+                    if (typeof children === 'string') {
+                        if (containsLatex(children)) {
+                            return <p className="mb-4">{processLatex(children as string)}</p>;
+                        }
+
+                        const paragraphs = children.split(/\n\n+/).map((text, i) => (
+                            <p key={i} className="mb-4">
+                                {text.split('\n').map((line, j) => (
+                                    <React.Fragment key={j}>
+                                        {line}
+                                        {j !== text.split('\n').length - 1 && <br />}
+                                    </React.Fragment>
+                                ))}
+                            </p>
+                        ));
+                        return <>{paragraphs}</>;
+                    }
+                    return <p className="mb-4">{children}</p>;
                 },
-                // Custom components for table rendering
-                table: ({node, ...props}) => (
-                    <div className="overflow-x-auto my-4">
-                        <table className="min-w-full divide-y divide-gray-200" {...props} />
-                    </div>
-                ),
-                thead: ({node, ...props}) => <thead className="bg-gray-50" {...props} />,
-                tbody: ({node, ...props}) => <tbody className="bg-white divide-y divide-gray-200" {...props} />,
-                tr: ({node, ...props}) => <tr className="hover:bg-gray-50" {...props} />,
-                th: ({node, ...props}) => (
-                    <th
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                        {...props}
-                    />
-                ),
-                td: ({node, ...props}) => (
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500" {...props} />
-                ),
+                a: ({ href, children, ...props }) => {
+                    const citationMatch = href?.match(/\[(\d+)\]$/);
+                    const citation = citationMatch ? `[${citationMatch[1]}]` : '';
+
+                    return (
+                        <a
+                            href={href}
+                            className="inline-flex items-center text-blue-600 hover:text-blue-800 visited:text-purple-600"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            {...props}
+                        >
+                            {children}
+                            {citation && <sup className="ml-0.5 text-xs">{citation}</sup>}
+                        </a>
+                    );
+                }
             }}
         >
-            {formattedContent}
+            {safeContent}
         </ReactMarkdown>
     );
 };
 
-export default MarkdownBlock;
+export default memo(MarkdownBlock);

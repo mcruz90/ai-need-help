@@ -22,6 +22,12 @@ conversation_collection = client.get_or_create_collection(
     embedding_function=cohere_ef,
 )
 
+# Create or get existing document collection
+document_collection = client.get_or_create_collection(
+    name="documents_collection",
+    embedding_function=cohere_ef,
+)
+
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

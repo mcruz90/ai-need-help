@@ -2,6 +2,47 @@ from config.config import Config, cohere_sync_client
 from langchain_cohere import CohereEmbeddings
 from chromadb.utils.embedding_functions import EmbeddingFunction
 from typing import List
+from utils.utils import logger
+from typing import List, Union
+import base64
+
+class Embeddings():
+    def __init__(self, model_name=Config.EMBED_MODEL, embeddings_type=["float"]):
+        self.client = cohere_sync_client
+        self.model_name = model_name
+        self.embeddings_type = embeddings_type
+
+    def embed_documents(self, texts: List[str]):
+        """Embed text documents using the Cohere API."""
+        logger.info(f"Embedding {len(texts)} documents")
+        response = self.client.embed(
+            texts=texts,
+            model=self.model_name,
+            embedding_types=self.embeddings_type,
+            input_type="search_document"
+        )
+        return response.embeddings.float
+
+    def embed_images(self, image_paths: List[str]):
+        """
+        Embed images using the Cohere API.
+        Each image must be less than 5MB in size.
+        """
+        # Convert images to data URIs
+        image_uris = []
+        for image_path in image_paths:
+            with open(image_path, "rb") as image_file:
+                encoded_string = base64.b64encode(image_file.read()).decode()
+                image_uri = f"data:image/jpeg;base64,{encoded_string}"
+                image_uris.append(image_uri)
+
+        response = self.client.embed(
+            images=image_uris,
+            model=self.model_name,
+            embedding_types=self.embeddings_type,
+            input_type="image"
+        )
+        return response.embeddings.float
 
 class CustomCohereEmbeddingFunction(EmbeddingFunction):
     def __init__(self, api_key, model_name=Config.EMBED_MODEL, embeddings_type=["float"], input_type=None):

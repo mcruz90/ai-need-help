@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import PastConversations from '../pastconversations/PastConversations';
+import ChatMessages from './ChatMessages';
 import './ChatInterface.css';
-import '../../markdown-styles.css';
-import { DocumentDuplicateIcon, PaperAirplaneIcon, MicrophoneIcon } from '@heroicons/react/24/outline';
 import { API_URL } from '../../utils/api';
-import MarkdownBlock from './MarkdownBlock';
+import ChatInput from './ChatInput'; 
+import { useSession } from 'next-auth/react';
 
 // Define the ChatInterfaceProps interface 
 interface ChatInterfaceProps {
     messages: Array<{ text: string; isUser: boolean; isLoading?: boolean; isCited?: boolean; rawText?: string; citedText?: string }>;
-    onNewMessage: (message: string) => Promise<void>;
+    onNewMessage: (message: string, files?: File[] | null) => Promise<void>; 
     interimTranscript: string;
     inputMessage: string;
     setInputMessage: React.Dispatch<React.SetStateAction<string>>;
@@ -27,31 +27,17 @@ export default function ChatInterface({
     isListening,
     toggleListening
 }: ChatInterfaceProps) {
-    const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const [showPastConversations, setShowPastConversations] = useState(false);
-    const [showCitations, setShowCitations] = useState<boolean>(true);
-
+    const [files, setFiles] = useState<File[]>([]);
+    const [uploading, setUploading] = useState(false);
+    const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+    const { data: session } = useSession();
+    const [isProcessing, setIsProcessing] = useState(false);
+    
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, interimTranscript]);
-
-    // Function to handle form submission
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (inputMessage.trim()) {
-            await onNewMessage(inputMessage);
-            setInputMessage('');
-        }
-    };
-
-    // Function to copy text to clipboard
-    const copyToClipboard = (text: string, index: number) => {
-        navigator.clipboard.writeText(text).then(() => {
-            setCopiedIndex(index);
-            setTimeout(() => setCopiedIndex(null), 2000);
-        });
-    };
 
     // Function to handle selecting a past conversation
     const handleSelectConversation = async (conversationId: string) => {
@@ -67,19 +53,34 @@ export default function ChatInterface({
         }
     };
 
-    const toggleCitations = () => {
-        setShowCitations(!showCitations);
+    const handleSubmit = async (message: string, files: File[] | null = null) => {
+        if (!message.trim() && (!files || files.length === 0)) {
+            setUploadMessage('Please enter a message or select files to upload.');
+            return;
+        }
+
+        setIsProcessing(true);
+        try {
+            await onNewMessage(message, files);
+        } catch (error) {
+            console.error('Error processing request:', error);
+            setUploadMessage('Error processing request. Please try again.');
+        } finally {
+            setIsProcessing(false);
+            setInputMessage('');
+            setFiles([]); 
+        }
     };
 
     return (
-        <div className="chat-container">
-            <div className="flex flex-row mb-4 justify-between items-center">
+        <div className="flex flex-col h-full">
+            {/* Header section */}
+            <div className="flex flex-row mb-4 justify-between items-center p-4">
                 <div className="flex flex-row">
-                    <h2 className="text-2xl font-medium text-gray-700 pr-2">Hi, my name is </h2>
-                    <h1 className="text-2xl font-semibold">
-                        <span className="bg-black text-white px-1 rounded-md">AI</span>
-                        <span className="text-gray-900 pl-0.5">ko</span>
-                    </h1>
+                    <h2 className="text-2xl font-medium text-gray-500 pr-2">
+                        <span className="bg-black text-white px-1 rounded-md">Hi</span> 
+                        {session?.user?.name}, how can I help you today? 
+                    </h2>
                 </div>
                 <button
                     className="action-button-outline"
@@ -88,81 +89,33 @@ export default function ChatInterface({
                     {showPastConversations ? 'Back to Chat' : 'Past Chats '}
                 </button>
             </div>
-            <div className="chat-box">
+
+            {/* Main content area */}
+            <div className="flex-1 flex flex-col min-h-0 px-4">
                 {showPastConversations ? (
                     <PastConversations onSelectConversation={handleSelectConversation} />
                 ) : (
                     <>
-                        <div className="chat-messages">
-                            {messages.map((msg, index) => (
-                                <div key={index} className={`message-wrapper ${msg.isUser ? 'justify-end' : 'justify-start'}`}>
-                                    <div className={`message ${msg.isUser ? 'message-user' : 'message-ai'}`}>
-                                        {msg.isUser ? (
-                                            <p>{msg.text}</p>
-                                        ) : msg.isLoading ? (
-                                            <div className="flex items-center">
-                                                <svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
-                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                                                </svg>
-                                                Thinking...
-                                            </div>
-                                        ) : (
-                                            <>
-                                                <MarkdownBlock content={showCitations ? (msg.citedText || msg.text) : (msg.rawText || msg.text)} />
-                                                <button
-                                                    onClick={() => copyToClipboard(showCitations ? (msg.citedText || msg.text) : (msg.rawText || msg.text), index)}
-                                                    className="copy-button"
-                                                    aria-label="Copy model response"
-                                                >
-                                                    <DocumentDuplicateIcon className={`h-5 w-5 ${copiedIndex === index ? 'text-green-500' : 'text-gray-300'}`} />
-                                                </button>
-                                                {msg.citedText && msg.rawText && (
-                                                    <button
-                                                        onClick={toggleCitations}
-                                                        className="toggle-citations-button"
-                                                    >
-                                                        {showCitations ? 'Hide Citations' : 'Show Citations'}
-                                                    </button>
-                                                )}
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
-                            {interimTranscript && (
-                                <div className="message-wrapper justify-end">
-                                    <div className="message message-user interim">{interimTranscript}</div>
-                                </div>
-                            )}
-                            <div ref={messagesEndRef} />
+                        {/* Messages container */}
+                        <div className="flex-1 h-0 mb-4 rounded-lg">
+                            <ChatMessages messages={messages} interimTranscript={interimTranscript} />
                         </div>
-                        <form onSubmit={handleSubmit} className="input-form">
-                            <div className="input-container">
-                                <input
-                                    type="text"
-                                    value={inputMessage}
-                                    onChange={(e) => setInputMessage(e.target.value)}
-                                    placeholder="Type a message..."
-                                    className="chat-input"
-                                />
-                                <button 
-                                    type="button"
-                                    onClick={toggleListening}
-                                    className={`voice-button ${isListening ? 'listening' : ''}`}
-                                    aria-label={isListening ? 'Stop Listening' : 'Start Listening'}
-                                >
-                                    <MicrophoneIcon className="h-6 w-6" />
-                                </button>
-                                <button 
-                                    type="submit" 
-                                    className="send-button flex flex-row"
-                                    disabled={messages.some(msg => msg.isLoading)}
-                                >
-                                    <PaperAirplaneIcon className="h-6 w-6 pr-2" /> Send
-                                </button>
-                            </div>
-                        </form>
+
+                        {/* ChatInput component */}
+                        <div className="flex-shrink-0">
+                            <ChatInput
+                                inputMessage={inputMessage}
+                                setInputMessage={setInputMessage}
+                                onNewMessage={handleSubmit}
+                                isListening={isListening}
+                                toggleListening={toggleListening}
+                                files={files} 
+                                setFiles={setFiles}
+                                isProcessing={isProcessing}
+                                uploadMessage={uploadMessage}
+                                uploading={uploading}
+                            />
+                        </div>
                     </>
                 )}
             </div>

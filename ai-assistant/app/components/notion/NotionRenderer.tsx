@@ -26,6 +26,7 @@ export function renderNotionContent(blocks: any[]): ReactNode {
   let currentList: ReactNode[] = [];
   let currentListType: 'bulleted' | 'numbered' | null = null;
 
+  
   function flushList() {
     if (currentList.length > 0) {
       content.push(
@@ -119,13 +120,12 @@ export function renderNotionContent(blocks: any[]): ReactNode {
     }
   });
 
-  flushList(); // Flush any remaining list items
+  flushList(); 
 
   const handleCopy = () => {
     const textContent = blocks.map(block => getBlockText(block)).join('\n');
     copyToClipboard(textContent);
     
-    // Create a prominent overlay for feedback
     const overlay = document.createElement('div');
     overlay.style.position = 'fixed';
     overlay.style.top = '0';
@@ -149,7 +149,6 @@ export function renderNotionContent(blocks: any[]): ReactNode {
     overlay.appendChild(message);
     document.body.appendChild(overlay);
 
-    // Remove the overlay after 1.5 seconds
     setTimeout(() => {
       document.body.removeChild(overlay);
     }, 1500);

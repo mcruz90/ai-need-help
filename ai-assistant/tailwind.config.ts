@@ -27,6 +27,8 @@ const config: Config = {
         'primary': 'var(--primary)',
         'secondary': 'var(--secondary)',
         'accent': 'var(--accent)',
+        'background-dark': '#2A3C44',
+        'background-medium': '#334750',
         'button-brand-green': '#3ED598',
         'button-brand-green-dark': '#34B1AA',
         'button-brand-red': '#FF565E',

@@ -32,10 +32,9 @@ export function useNotion() {
       console.log("Years:", data.years);
       console.log("Semesters:", data.semesters);
 
-      setPages(data.pages || []); // Provide a default empty array if data.pages is undefined
-      setDatabases(data.databases || []); // Provide a default empty array if data.databases is undefined
+      setPages(data.pages || []);
+      setDatabases(data.databases || []);
       
-      // Ensure we're setting years and semesters correctly
       if (Array.isArray(data.years)) {
         setYears(data.years);
       }

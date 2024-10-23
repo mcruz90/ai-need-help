@@ -1,141 +1,65 @@
-from .triage_helper_functions import format_chat_history, extract_key_info, stream_with_timeout, serialize_tool_call
+from .triage_utils import Citation, ChatProcessor, ToolCallHandler
 from llm_models.chat import chat_model
 from .triage_tools import tools, functions_map
-from utils import logger, log_structured
+from utils.utils import logger, log_structured
 import json
 import asyncio
 from fastapi import BackgroundTasks
 from fastapi.responses import StreamingResponse
 from db import store_conversation
-from typing import List, Dict, Tuple
-from json import JSONEncoder
+from utils.profiling import profile
+from typing import AsyncGenerator
 
-class Citation:
-    def __init__(self, start: int, end: int, text: str, sources: List[Dict]):
-        self.start = start
-        self.end = end
-        self.text = text
-        self.sources = sources
+TIMEOUT = 90.0
 
-    def to_dict(self):
-        return {
-            'start': self.start,
-            'end': self.end,
-            'text': self.text,
-            'sources': [self.serialize_source(s) for s in self.sources]
-        }
-
-    @staticmethod
-    def serialize_source(source):
-        if isinstance(source, dict):
-            return source
-        return {k: v for k, v in source.__dict__.items() if not k.startswith('_')}
-
-def add_citations_to_response(response: str, citations: List[Citation]) -> Tuple[str, Dict[str, int], List[str]]:
-    if not citations:
-        return response, {}, []  # Return the original response if there are no citations
-
-    # Sort citations by start position in descending order
-    sorted_citations = sorted(citations, key=lambda c: c.start, reverse=True)
-    
-    # Create a mapping of unique URLs to citation indices
-    url_to_index = {}
-    current_index = 1
-
-
-    # First pass: assign indices to unique URLs
-    for citation in sorted_citations:
-        for source in citation.sources:
-            serialized_source = Citation.serialize_source(source)
-            content_str = serialized_source.get('tool_output', {}).get('content', '[]')
-            try:
-                content = json.loads(content_str)
-                for item in content:
-                    url = item.get('url', '')
-                    if url and url not in url_to_index:
-                        url_to_index[url] = current_index
-                        current_index += 1
-            except json.JSONDecodeError:
-                print(f"Failed to parse JSON: {content_str}")
-
-    # Second pass: insert citation tags
-    for citation in sorted_citations:
-        citation_tags = []
-        for source in citation.sources:
-            serialized_source = Citation.serialize_source(source)
-            content_str = serialized_source.get('tool_output', {}).get('content', '[]')
-            try:
-                content = json.loads(content_str)
-                for item in content:
-                    url = item.get('url', '')
-                    if url and url in url_to_index:
-                        index = url_to_index[url]
-                        if not any(tag for tag in citation_tags if f'href="{url}"' in tag):
-                            citation_tags.append(f'<a href="{url}">{index}</a>')
-            except json.JSONDecodeError:
-                print(f"Failed to parse JSON: {content_str}")
-        
-        if citation_tags:
-            citation_html = ''.join(citation_tags)
-            response = (
-                response[:citation.end] +
-                citation_html +
-                response[citation.end:]
-            )
-    
-    return response, url_to_index
-
-class CustomJSONEncoder(JSONEncoder):
-    def default(self, obj):
-        if hasattr(obj, '__dict__'):
-            return obj.__dict__
-        return super().default(obj)
-
-async def triage_agent(user_message: str, chat_history: list, background_tasks: BackgroundTasks):
+@profile
+async def triage_agent(user_message: str, chat_history: list, background_tasks: BackgroundTasks) -> AsyncGenerator[bytes, None]:
     full_response = ""
-    citations: List[Citation] = []
+    cited_response = None
+    citations = []
+    url_to_index = None
 
     async def generate():
-        nonlocal full_response, citations
+        nonlocal full_response, citations, cited_response, url_to_index
         try:
             log_structured("INFO", "Starting triage agent", {"user_message": user_message})
 
-            formatted_history = format_chat_history(chat_history)
-            context_info = await extract_key_info(user_message, chat_history)
+            formatted_history = ChatProcessor.format_chat_history(chat_history)
 
             system_message = f"""
             ## Task & Context
-            You help users route their questions to the appropriate AI agents available as tools. 
+            You help users route their questions to the appropriate AI agents available as tools and do not try to answer the user's request directly. 
 
             You will be asked a very wide array of requests on all kinds of topics.
-            You will be equipped with a wide range of tools to help you, which you use to research your answer.
-            You should focus on serving the user's needs as best you can, which will be wide-ranging.
+            You will be equipped with a wide range of tools to help you direct the user's request to the appropriate AI agent.
 
-            ## Context Info
-            {context_info}
-
-            The context info is provided to help you route the user's query to the appropriate AI agent.
+            Carefully consider the tool's description and parameters, as well as the complexity and intent of the user's request.
+            Do not try to answer the user's request directly, unless they are having casual chit-chat conversations that do not seek information.
+            You must use the tools available to you to route the user's request in all other cases.
 
             ## Tool Call Parameters
-            Where specified, all required arguments fo the selected AI agent must be passed as a stringified JSON object.
-            queries: {user_message}
+            Where specified, all required arguments to the selected AI agent must be passed as a stringified JSON object.
+            You must carefully format the arguments as specified in the tool's description and parameters.
+            Do not make up any parameters or arguments.
+            
+            query or user_message: {user_message}
             chat_history: {formatted_history}
             """
 
             messages = [
-            {"role": "system", "content": system_message},
-            *formatted_history,
-            {"role": "user", "content": user_message},
+                {"role": "system", "content": system_message},
+                *formatted_history,
+                {"role": "user", "content": user_message},
             ]
             
             try:
-                response = await asyncio.wait_for(
-                    chat_model.generate_response_with_tools(messages, tools),
-                    timeout=30.0  # 30 seconds timeout
-                )
+                logger.info("Calling chat_model.generate_response_with_tools")
+                
+                response = await chat_model.generate_response_with_tools(messages, tools)
+                
             except asyncio.TimeoutError:
                 log_structured("ERROR", "Triage agent initial response timed out", {"user_message": user_message})
-                yield "Sorry, the initial request timed out. Please try again.".encode('utf-8')
+                yield "Sorry, the triage agent's initial request timed out. Please try again.".encode('utf-8')
                 return
 
             logger.info(response)
@@ -145,145 +69,90 @@ async def triage_agent(user_message: str, chat_history: list, background_tasks: 
             logger.info("%s", response.message.tool_plan)
             logger.info("Tool calls:")
 
-            for tc in response.message.tool_calls:
-                logger.info(f"Tool name: {tc.function.name} | Parameters: {tc.function.arguments}")
+            if response.message.tool_calls:
+                for tc in response.message.tool_calls:
+                    logger.info(f"Tool name: {tc.function.name} | Parameters: {tc.function.arguments}")
 
             # append the chat history
-            messages.append(
-                {
-                    "role": "assistant",
-                    "tool_calls": [serialize_tool_call(tc) for tc in response.message.tool_calls],
-                    "tool_plan": response.message.tool_plan,
-                }
-            )
-
-            # Iterate over the tool calls generated by the model
-            for tc in response.message.tool_calls:
-                try:
-                    tool_result = await asyncio.wait_for(
-                        functions_map[tc.function.name](**json.loads(tc.function.arguments)),
-                        timeout=30.0  # 30 seconds timeout
-                    )
-                    if isinstance(tool_result, dict) and "error" in tool_result:
-                        log_structured("ERROR", f"Error from {tc.function.name}", {"error": tool_result['error']})
-                        yield f"An error occurred: {tool_result['error']}".encode('utf-8')
-                        continue
+            messages.append({
+                "role": "assistant",
+                "tool_calls": [ToolCallHandler.serialize_tool_call(tc) for tc in (response.message.tool_calls or [])],
+                "tool_plan": response.message.tool_plan
+            })
+            if response.message.tool_calls:
+                # Iterate over the tool calls generated by the model
+                for tc in response.message.tool_calls:
+                    try:
+                        tool_result = await asyncio.wait_for(
+                            functions_map[tc.function.name](**json.loads(tc.function.arguments)),
+                            timeout=TIMEOUT
+                        )
+                        if isinstance(tool_result, dict) and "error" in tool_result:
+                            log_structured("ERROR", f"Error from {tc.function.name}", {"error": tool_result['error']})
+                            yield f"An error occurred: {tool_result['error']}".encode('utf-8')
+                            continue
                     
-                    log_structured("INFO", f"Tool results from {tc.function.name}", {"results": tool_result})
+                        async for item in tool_result:
+                            if item["type"] == "content":
+                                full_response += item["data"]
+                                yield item["data"].encode('utf-8')
+                            elif item["type"] == "citation":
+                                citations.append(Citation(**item["data"]))
+                            elif item["type"] == "full_response":
+                                full_response = item["data"]
+                            elif item["type"] == "cited_response":
+                                cited_response = item["data"]
+                            elif item["type"] == "url_to_index":
+                                url_to_index = item["data"]
 
-                    # Process the tool results
-                    if tc.function.name == 'code_agent':
-                        # For code_agent, we don't need to process the results further
-                        processed_results = tool_result.get('result', '')
-                    else:
-                        processed_results = []
-                        if 'result' in tool_result:
-                            for item in tool_result['result']:
-                                if 'document' in item and 'data' in item['document']:
-                                    try:
-                                        data = json.loads(item['document']['data'])
-                                        processed_results.append(data['data'])
-                                    except json.JSONDecodeError:
-                                        log_structured("ERROR", "Failed to parse JSON", {"data": item['document']['data']})
+                        if cited_response:
+                            log_structured("INFO", "Received cited response", {
+                                "cited_response": cited_response,
+                                "url_to_index": url_to_index
+                            })
+                            # Send the marker on its own line
+                            yield b"__CITATIONS_START__\n"
+                            # Then send the cited response
+                            yield cited_response.encode('utf-8')
+                        else:
+                            log_structured("WARNING", "No cited response received from tool", {"tool_name": tc.function.name})
 
-                    # Append processed results to messages
-                    messages.append(
-                        {"role": "tool", "tool_call_id": tc.id, "content": json.dumps(processed_results)}
-                    )
+                    except asyncio.TimeoutError:
+                        log_structured("ERROR", f"Tool call {tc.function.name} timed out", {"arguments": tc.function.arguments})
+                        yield f"Sorry, the {tc.function.name} operation timed out. Continuing with available information.".encode('utf-8')
+                    except Exception as e:
+                        log_structured("ERROR", f"Error calling {tc.function.name}", {"error": str(e)})
+                        yield f"An error occurred while processing your request. Continuing with available information.".encode('utf-8')
+            elif response.message.content:
+                log_structured("INFO", "No tool calls, but text response received", {"text": response.message.content[0].text})
+                full_response = response.message.content[0].text
+                yield full_response.encode('utf-8')
+            else:
+                log_structured("WARNING", "No tool calls or text response generated", {"messages": messages})
+                default_response = "I'm sorry, but I couldn't generate a proper response. How else can I assist you?"
+                full_response = default_response
+                yield default_response.encode('utf-8')
 
-                except asyncio.TimeoutError:
-                    log_structured("ERROR", f"Tool call {tc.function.name} timed out", {"arguments": tc.function.arguments})
-                    yield f"Sorry, the {tc.function.name} operation timed out. Continuing with available information.".encode('utf-8')
-                except Exception as e:
-                    log_structured("ERROR", f"Error calling {tc.function.name}", {"error": str(e)})
-                    yield f"An error occurred while processing your request: {str(e)}. Continuing with available information.".encode('utf-8')
+            # After all yielding, construct and yield the final JSON response
+            if cited_response:
+                final_response = {
+                    "raw_response": full_response.strip(),
+                    "cited_response": cited_response.strip(),
+                    "citations": True
+                }
+            else:
+                final_response = {
+                    "raw_response": full_response.strip(),
+                    "cited_response": None,
+                    "citations": False
+                }
 
-            # Generate final response
-
-            updated_instructions = f"""
-            ## Task & Context
-            You have just received the results of your tool calls, and will now be asked to provide a final response to the user.
-            Your final response must be based on the tool results provided.
-
-            ## Context Info
-            The context of the user's question is: {context_info}
-
-            ## Instructions
-            The tool results contain the answer to the user's question. Your task is to present this information in a clear and helpful manner.
-            Do not state that you can't help with the request, as the necessary information has been provided by the tool.
-
-            If the tool results are from the code_agent:
-            1. Present the entire response from the code_agent exactly as it is, without any modifications or additional explanations.
-            2. Do not attempt to reformat, summarize, or explain the code_agent's response. It has been pre-formatted and explained appropriately.
-
-            For other types of tool results:
-            If the tool results contain a list of documents, your final response should be informed by these documents and should answer
-            the user's original question. Do not state anything that cannot be backed up by the documents.
-
-            ## Style Guidelines
-            - When presenting code_agent results, do not add any additional commentary or explanation.
-            - For other types of results, be concise and to the point if the complexity of the user's request is low.
-            - Be detailed and comprehensive if the complexity of the user's request is high.
-            - Be kind and helpful, and maintain a professional tone.
-            """
-
-            messages.append({"role": "assistant", "content": updated_instructions})
-
-            log_structured("INFO", "Messages before final response generation", {"messages": messages})
-
-            response_stream = await chat_model.generate_streaming_response(
-                messages=messages,
-                tools=tools
-            )
-
-            log_structured("INFO", "Starting final answer generation")
-            async for chunk in stream_with_timeout(response_stream, timeout=10.0):  # 10 second timeout between chunks
-                if chunk and chunk.type == "content-delta":
-                    content = chunk.delta.message.content.text
-                    if content:
-                        full_response += content
-                        # Stream the raw content immediately
-                        yield content.encode('utf-8')
-                elif chunk and chunk.type == "citation-start":
-                    citation = Citation(
-                        start=chunk.delta.message.citations.start,
-                        end=chunk.delta.message.citations.end,
-                        text=chunk.delta.message.citations.text,
-                        sources=chunk.delta.message.citations.sources
-                    )
-                    citations.append(citation)
-                log_structured("DEBUG", "Chunk received", {"chunk": str(chunk)})
-
-            log_structured("DEBUG", "Full response and citations", {
-                "full_response": full_response,
-                "citations": json.dumps([c.to_dict() for c in citations], cls=CustomJSONEncoder)
-            })
-
-            # Process citations after generating the full response
-            cited_response, url_to_index, sources_list = add_citations_to_response(full_response, citations)
-            
-            log_structured("DEBUG", "Citations processing", {
-                "original_response": full_response,
-                "cited_response": cited_response,
-                "citations": json.dumps([c.to_dict() for c in citations], cls=CustomJSONEncoder),
-                "url_to_index": json.dumps(url_to_index),
-                "sources_list": json.dumps(sources_list)
-            })
-
-            log_structured("INFO", "Final response completed", {
-                "full_response": full_response,
-                "cited_response": cited_response,
-                "sources_list": json.dumps(sources_list)
-            })
-
-            # Yield a special marker to indicate the end of streaming and start of the cited response
-            yield b"__CITATIONS_START__"
-            # Yield the cited response
-            yield cited_response.encode('utf-8')
+            # Yield the final JSON object as the last chunk with a newline delimiter
+            yield json.dumps(final_response).encode('utf-8') + b'\n'
 
         except Exception as e:
             log_structured("ERROR", "Unexpected error in triage_agent", {"error": str(e)})
-            yield f"An unexpected error occurred: {str(e)}".encode('utf-8')
+            yield f"An unexpected error occurred in triage_agent: {str(e)}".encode('utf-8')
 
     def update_chat_history():
         try:
@@ -293,4 +162,4 @@ async def triage_agent(user_message: str, chat_history: list, background_tasks: 
 
     background_tasks.add_task(update_chat_history)
 
-    return StreamingResponse(generate(), media_type="text/html")
+    return StreamingResponse(generate(), media_type="text/event-stream")

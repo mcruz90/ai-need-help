@@ -4,7 +4,7 @@ from config.config import cohere_client as client, Config
 from llm_models.embed import get_embeddings
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
-from utils import logger
+from utils.utils import logger
 
 async def generate_text(prompt: str) -> str:
     messages = [{"role": "user", "content": prompt}]

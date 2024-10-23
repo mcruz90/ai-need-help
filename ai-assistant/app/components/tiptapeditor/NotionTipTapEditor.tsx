@@ -16,7 +16,7 @@ interface NotionBlock {
   type: string;
   paragraph?: { rich_text: RichTextItemRequest[] };
   heading_1?: { rich_text: RichTextItemRequest[] };
-  // Add more block types as needed
+ 
 }
 
 interface TiptapNode {
@@ -25,7 +25,7 @@ interface TiptapNode {
   attrs?: { level: number };
 }
 
-// Notion to Tiptap converter (simplified)
+// Notion to Tiptap converter
 const notionToTiptap = (notionBlocks: NotionBlock[]): TiptapNode[] => {
   return notionBlocks.map(block => {
     switch (block.type) {
@@ -33,14 +33,14 @@ const notionToTiptap = (notionBlocks: NotionBlock[]): TiptapNode[] => {
         return { type: 'paragraph', content: [{ type: 'text', text: block.paragraph?.rich_text[0]?.text.content || '' }] };
       case 'heading_1':
         return { type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: block.heading_1?.rich_text[0]?.text.content || '' }] };
-      // Add more cases for other block types
+      
       default:
         return null;
     }
   }).filter(Boolean) as TiptapNode[];
 };
 
-// Tiptap to Notion converter (simplified)
+// Tiptap to Notion converter
 const tiptapToNotion = (tiptapContent: TiptapNode[]): NotionBlock[] => {
   return tiptapContent.map(node => {
     switch (node.type) {
@@ -54,7 +54,6 @@ const tiptapToNotion = (tiptapContent: TiptapNode[]): NotionBlock[] => {
           type: `heading_${node.attrs?.level}`,
           [`heading_${node.attrs?.level}`]: { rich_text: [{ type: 'text', text: node.content?.[0]?.text || '' }] }
         };
-      // Add more cases for other node types
       default:
         return null;
     }
@@ -88,7 +87,7 @@ const NotionTipTapEditor: React.FC<{ pageId: string }> = ({ pageId }) => {
     // Update Notion page
     await notion.blocks.children.append({
       block_id: pageId,
-      children: notionBlocks as any, // Use 'as any' to bypass type checking temporarily
+      children: notionBlocks as any,
     });
 
     console.log('Content saved to Notion');

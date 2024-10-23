@@ -3,20 +3,11 @@ import EventList from './EventList';
 import './calendar.css';
 import Calendar from 'react-calendar'; 
 import 'react-calendar/dist/Calendar.css'; 
+import { fetchCalendarEvents, Event } from '@/app/api/calendar/calendarApi';
 
 // Define types for the calendar
 type ValuePiece = Date | null;
 type Value = ValuePiece | [ValuePiece, ValuePiece];
-
-// Define types for the events
-interface Event {
-  id: string;
-  date: string;
-  time: string;
-  description: string;
-  location?: string;
-  duration: number;
-}
 
 // Define the Calendar component
 const CalendarComponent: React.FC = () => {
@@ -28,17 +19,13 @@ const CalendarComponent: React.FC = () => {
     return date.toISOString().split('T')[0];
   }, []);
 
-  const fetchEvents = useCallback(async (date: string) => {
+  const loadEvents = useCallback(async (date: string) => {
     setIsLoading(true);
     try {
-      const response = await fetch(`http://localhost:8000/api/calendar/events?date=${date}`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-      setEvents(data.events);
+      const fetchedEvents = await fetchCalendarEvents(date);
+      setEvents(fetchedEvents);
     } catch (error) {
-      console.error("Error fetching events:", error);
+      console.error("Error loading events:", error);
     } finally {
       setIsLoading(false);
     }
@@ -46,8 +33,8 @@ const CalendarComponent: React.FC = () => {
 
   useEffect(() => {
     const formattedDate = formatDate(currentDate);
-    fetchEvents(formattedDate);
-  }, [currentDate, fetchEvents, formatDate]);
+    loadEvents(formattedDate);
+  }, [currentDate, loadEvents, formatDate]);
 
   const handleDateChange = (value: Value) => {
     if (value instanceof Date) {
