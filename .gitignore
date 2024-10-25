@@ -75,3 +75,8 @@ main_copy.py
 **/db_utils
 existing_data.json
 manage_project.py
+**/triage_agent_profile.txt
+
+# Docker
+compose.yaml
+README.Docker.md

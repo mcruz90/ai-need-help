@@ -1,6 +1,7 @@
 import React from 'react';
 import MarkdownBlock from './MarkdownBlock';
 import { DocumentDuplicateIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+import Image from 'next/image';
 
 interface ChatMessagesProps {
     messages: Array<{
@@ -62,10 +63,22 @@ export default function ChatMessages({ messages, interimTranscript }: ChatMessag
             <div className="flex-1 overflow-y-auto">
                 <div className="p-4 space-y-4">
                     {messages.map((msg, index) => (
-                        <div key={index} className={`message-wrapper ${msg.isUser ? 'justify-end' : 'justify-start'}`}>
+                        <div key={index} className={`message-wrapper flex items-start ${msg.isUser ? 'justify-end' : 'justify-start'}`}>
+                            {!msg.isUser && !msg.isLoading && msg.isCited && (
+                                <div className="mt-5">
+                                    <Image
+                                        src="/assistant-avatar.svg"
+                                        alt="AI Assistant Avatar"
+                                        width={24}
+                                        height={24} 
+                                        className="rounded-full"
+                                    />
+                                </div>
+                            )}
                             <div className={`message ${msg.isUser ? 'message-user' : 'message-assistant'} ${msg.isLoading ? 'loading' : ''}`}>
                                 <MarkdownBlock content={getMessageContent(msg)} />
                                 {!msg.isUser && (
+                                    <>
                                     <div className="flex flex-row justify-end space-x-2 mt-2">
                                         {msg.isLoading ? (
                                             <div className="flex items-center space-x-2 text-gray-400">
@@ -96,7 +109,8 @@ export default function ChatMessages({ messages, interimTranscript }: ChatMessag
                                                 </button>
                                             </>
                                         )}
-                                    </div>
+                                        </div>
+                                    </>
                                 )}
                             </div>
                         </div>

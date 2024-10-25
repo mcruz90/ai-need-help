@@ -103,7 +103,10 @@
   border-radius: 0.5rem; 
   padding: 0.5rem;
   position: relative;
-  padding-bottom: 2rem; 
+  padding-bottom: 2rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
 }
 
 .message-ai sup {

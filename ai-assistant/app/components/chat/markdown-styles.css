@@ -15,23 +15,43 @@
   }
 
   h1 {
-    font-size: 1.25rem;
-    color: #96A7AF;
+    font-size: 1.75rem;
+    color: #B8C5CC;
     font-weight: bold;
+    line-height: 1.2;
+    margin-bottom: 1rem;
   }
 
   h2 {
-    font-size: 1.125rem;
-    color: #96A7AF;
+    font-size: 1.5rem;
+    color: theme('colors.gray.300');
     font-weight: bold;
+    line-height: 1.3;
+    margin-bottom: 0.75rem;
   }
 
   h3 {
-    font-size: 1rem;
+    font-size: 1.25rem;
+    color: #B8C5CC;
+    font-weight: 600;
+    line-height: 1.4;
+    margin-bottom: 0.5rem;
   }
 
   p, li {
     font-size: 1rem;
+    line-height: 1.6;
+    margin-bottom: 0.5rem;
+  }
+
+  ul {
+    list-style-type: disc;
+    padding-left: 1.5rem;
+  }
+
+  ol {
+    list-style-type: decimal;
+    padding-left: 1.5rem;
   }
 
   table {
