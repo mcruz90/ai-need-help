@@ -1,6 +1,7 @@
 # Ai Need Help: AI Personal Assistant
 
-![image](https://github.com/user-attachments/assets/18263d85-5570-4641-ba1d-c6d8f5172ab9)
+![image](https://github.com/user-attachments/assets/ac20882c-25b9-4858-9737-7be87d6731b7)
+
 =======
 
 An AI assistant webapp using Cohere's LLM models through a Next.js frontend and a FastAPI backend. It implements a Router Agent that can route user requests to the appropriate agent based on the content of the user's message. The available agents are:
